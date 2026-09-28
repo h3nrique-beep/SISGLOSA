@@ -25,6 +25,13 @@ async function wait() {
     response = await request('/api/password', { method: 'POST', body: JSON.stringify({ password: 'Admin@Nova1' }) }); assert.equal(response.status, 200);
     response = await request('/api/guides'); assert.equal(response.status, 403);
     response = await request('/api/users', { method: 'POST', body: JSON.stringify({ username: 'auditor' }) }); assert.equal(response.status, 201);
+    cookie = '';
+    response = await request('/api/login', { method: 'POST', body: JSON.stringify({ username: 'auditor', password: '123456' }) }); assert.equal((await response.json()).mustChangePassword, true);
+    response = await request('/api/password', { method: 'POST', body: JSON.stringify({ password: 'Auditor@123' }) }); assert.equal(response.status, 200);
+    response = await request('/api/guides', { method: 'POST', body: JSON.stringify({ ocs: '', patient: '', billed: 0, items: [], status: 'RASCUNHO' }) }); assert.equal((await response.json()).status, 'RASCUNHO');
+    response = await request('/api/dashboard'); assert.equal((await response.json()).open, 1);
+    cookie = '';
+    await request('/api/login', { method: 'POST', body: JSON.stringify({ username: 'admin', password: 'Admin@Nova1' }) });
     response = await request('/api/users'); assert.equal((await response.json()).length, 2);
     response = await request('/api/users/2', { method: 'DELETE' }); assert.equal(response.status, 200);
     response = await request('/api/users'); assert.equal((await response.json()).length, 1);

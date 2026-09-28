@@ -75,6 +75,11 @@ td .amount{min-width:112px}
 .admin-metrics article{padding:19px;border:1px solid #cfe1ef;border-radius:12px;background:linear-gradient(135deg,#fff,#edf6fc);box-shadow:0 5px 16px #13233a08}
 .admin-metrics span{display:block;color:var(--muted);font-size:12px;font-weight:700}
 .admin-metrics strong{display:block;margin-top:4px;color:var(--navy);font-size:22px}
+.dashboard-metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:0 0 18px}
+.dashboard-metrics article{padding:22px;border:1px solid #cfe1ef;border-radius:14px;background:linear-gradient(135deg,#fff,#edf6fc);box-shadow:var(--shadow)}
+.dashboard-metrics article.open{background:var(--amber-soft);border-color:#f1dbac}.dashboard-metrics article.done{background:var(--green-soft);border-color:#bbe8d7}
+.dashboard-metrics span{display:block;color:var(--muted);font-size:13px;font-weight:700}.dashboard-metrics strong{display:block;margin-top:4px;color:var(--navy);font-size:28px}.dashboard-metrics .open strong{color:var(--amber)}.dashboard-metrics .done strong{color:var(--green)}
+.guide-status{display:inline-block;padding:4px 8px;border-radius:999px;font-size:12px;font-weight:800}.guide-status.draft{background:var(--amber-soft);color:#8b5700}.guide-status.finalized{background:var(--green-soft);color:#075b43}
 .admin-grid{display:grid;grid-template-columns:1.2fr .8fr;gap:18px}
 .role-badge,.status-badge{display:inline-block;padding:4px 8px;border-radius:999px;font-size:12px;font-weight:800}
 .role-badge{color:#075b43;background:var(--green-soft)}
@@ -94,13 +99,13 @@ td .amount{min-width:112px}
 .topbar nav{order:3;width:100%;height:38px;overflow:auto}
 .account{margin-left:auto}
 .app-shell{padding:26px 16px}
-.identity-grid,.metrics,.admin-metrics{grid-template-columns:1fr 1fr}
+.identity-grid,.metrics,.admin-metrics,.dashboard-metrics{grid-template-columns:1fr 1fr}
 .admin-grid{grid-template-columns:1fr}
 .page-title{align-items:flex-start;flex-direction:column}
 .module-guide{flex-wrap:wrap}
 .module-guide strong{margin-right:0;width:100%}
 }
-@media(max-width:540px){.identity-grid,.metrics,.admin-metrics{grid-template-columns:1fr}
+@media(max-width:540px){.identity-grid,.metrics,.admin-metrics,.dashboard-metrics{grid-template-columns:1fr}
 .panel{padding:17px}
 .login-card{padding:30px 24px}
 .account span{display:none}

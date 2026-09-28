@@ -12,9 +12,9 @@
   <style>.money-input{display:flex;align-items:center;border:1px solid #c7d3df;border-radius:8px;background:#fff;overflow:hidden}.money-input:focus-within{border-color:#1769aa;box-shadow:0 0 0 3px #1769aa20}.money-input>span{padding-left:10px;font-weight:700;white-space:nowrap}.money-input input{min-width:0!important;border:0!important;box-shadow:none!important;padding-left:7px}.table-wrap .money-input{min-width:132px}</style>
   <style>.document-model h3{text-transform:uppercase;border:1px solid #000;border-bottom:0;margin:12px 0 0;padding:2px}.document-model h3+table{margin-top:0}.document-model table:not(.summary){table-layout:fixed}.document-model table:not(.summary) th:nth-child(1),.document-model table:not(.summary) td:nth-child(1){width:5.25%}.document-model table:not(.summary) th:nth-child(2),.document-model table:not(.summary) td:nth-child(2){width:37.22%}.document-model table:not(.summary) th:nth-child(3),.document-model table:not(.summary) td:nth-child(3){width:46.84%}.document-model table:not(.summary) th:nth-child(4),.document-model table:not(.summary) td:nth-child(4){width:10.69%}</style>
   <style>.adjustment-justification{display:flex;flex-wrap:wrap;align-items:center;gap:5px;min-width:280px;padding:9px;border:1px solid #c7d3df;border-radius:8px;background:#f8fbfd;line-height:1.35}.adjustment-justification input{width:105px;padding:6px}.adjustment-justification strong{white-space:nowrap}</style>
-  <style>.login-shell{background:linear-gradient(135deg,#061d38,#0b3760)}.login-card{width:min(100%,470px);text-align:center}.sisglosa-logo{display:block;width:min(100%,245px);max-height:210px;object-fit:contain;margin:0 auto 18px}.login-card .stack{text-align:left}.login-card h1{margin:0 0 7px}.brand .nav-logo{width:34px;height:34px;object-fit:contain}.brand strong{font-size:17px;letter-spacing:.05em}</style>
+  <style>.login-shell{background:linear-gradient(135deg,#061d38,#0b3760)}body.loading #login-view{opacity:0}.login-card{width:min(100%,470px);text-align:center}.sisglosa-logo{display:block;width:min(100%,245px);max-height:210px;object-fit:contain;margin:0 auto 18px}.login-card .stack{text-align:left}.login-card h1{margin:0 0 7px}.brand strong{font-size:17px;letter-spacing:.05em}</style>
 </head>
-<body>
+<body class="loading">
   <main id="login-view" class="login-shell">
     <section class="login-card">
       <img class="sisglosa-logo" src="/sisglosa.jpg" alt="SISGLOSA">
@@ -46,18 +46,24 @@
 
   <div id="app-view" hidden>
     <header class="topbar">
-      <a class="brand" href="#"><img class="nav-logo" src="/sisglosa.jpg" alt="SISGLOSA"><strong>SISGLOSA</strong></a>
+      <a class="brand" href="#"><strong>SISGLOSA</strong></a>
       <nav aria-label="Navegação principal">
-        <button class="nav-link guide-only active" data-screen="guide">Nova guia</button>
+        <button class="nav-link guide-only active" data-screen="dashboard">Início</button>
+        <button class="nav-link guide-only" data-screen="guide">Nova guia</button>
         <button class="nav-link guide-only" data-screen="recent">Registros</button>
         <button class="nav-link admin-only" data-screen="admin" hidden>Administração</button>
         <button class="nav-link admin-only" data-screen="developer" hidden>Desenvolvedor</button>
       </nav>
-      <div class="account"><span id="username"></span><span class="app-version">v1.1.3</span><button id="logout" class="text-button">Sair</button></div>
+      <div class="account"><span id="username"></span><span class="app-version">v1.1.4</span><button id="logout" class="text-button">Sair</button></div>
     </header>
 
     <main class="app-shell">
-      <section id="guide-screen" class="screen">
+      <section id="dashboard-screen" class="screen">
+        <div class="page-title"><div><p class="eyebrow">VISÃO GERAL</p><h1>Dashboard de guias</h1><p class="muted">Acompanhe o andamento das auditorias.</p></div><div class="title-actions"><button id="dashboard-new-guide">Criar guia</button><button id="dashboard-open-guides" class="secondary">Ver guias em aberto</button></div></div>
+        <section class="dashboard-metrics"><article><span>Total de guias</span><strong id="dashboard-total">0</strong></article><article class="open"><span>Em aberto</span><strong id="dashboard-open">0</strong></article><article class="done"><span>Finalizadas</span><strong id="dashboard-finalized">0</strong></article></section>
+        <section class="panel"><div class="section-heading"><div><h2>Últimas guias</h2><p>As cinco guias mais recentes.</p></div></div><div class="table-wrap"><table class="dashboard-table"><thead><tr><th>Nº</th><th>OCS</th><th>Paciente</th><th>Status</th><th>Registrada em</th><th></th></tr></thead><tbody id="dashboard-guides"></tbody></table></div></section>
+      </section>
+      <section id="guide-screen" class="screen" hidden>
         <div class="page-title"><div><p class="eyebrow">NOVA ANÁLISE</p><h1>Guia de ajuste e glosa</h1><p class="muted">Preencha os dados e lance os itens da auditoria.</p></div><div class="title-actions"><button id="new-guide" class="secondary">Criar outra guia</button><button id="print-guide" class="secondary" disabled>Imprimir / PDF</button><button id="save-guide" class="secondary">Salvar guia</button><button id="finalize-guide">Finalizar guia</button></div></div>
         <form id="guide-form">
           <input id="guide-number" type="hidden">
@@ -76,7 +82,7 @@
         <section class="panel preview-card"><div class="section-heading"><div><h2>Pré-visualização da guia</h2></div></div><div id="preview" class="preview-paper"></div></section>
       </section>
 
-      <section id="recent-screen" class="screen" hidden><div class="page-title"><div><p class="eyebrow">HISTÓRICO</p><h1>Guias salvas</h1><p class="muted">Abra, imprima ou exclua uma guia.</p></div></div><section class="panel table-wrap"><table><thead><tr><th>OCS</th><th>Paciente</th><th>Valor apresentado</th><th>Registrada em</th><th>Ações</th></tr></thead><tbody id="recent-guides"></tbody></table></section></section>
+      <section id="recent-screen" class="screen" hidden><div class="page-title"><div><p class="eyebrow">HISTÓRICO</p><h1>Guias salvas</h1><p id="recent-description" class="muted">Abra, imprima ou exclua uma guia.</p></div></div><section class="panel table-wrap"><table><thead><tr><th>OCS</th><th>Paciente</th><th>Valor apresentado</th><th>Status</th><th>Registrada em</th><th>Ações</th></tr></thead><tbody id="recent-guides"></tbody></table></section></section>
       <section id="admin-screen" class="screen" hidden>
         <div class="page-title"><div><p class="eyebrow">ADMINISTRAÇÃO</p><h1>Usuários e acessos</h1><p class="muted">Crie usuários e redefina credenciais sem interromper as guias.</p></div></div>
         <section class="admin-metrics"><article><span>Usuários cadastrados</span><strong id="user-count">0</strong></article><article><span>Aguardando troca de senha</span><strong id="pending-password-count">0</strong></article><article><span>Perfil ativo</span><strong>Administrador</strong></article></section>
