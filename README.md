@@ -19,11 +19,14 @@ O SISGLOSA centraliza o registro das guias, calcula os valores auditados e gera 
 - Criação, edição, consulta e exclusão de guias em rascunho ou finalizadas.
 - Módulos específicos de ajuste e glosa, incluindo honorários, taxas, materiais, medicamentos, exames, OPME, nutrição e fisioterapia.
 - Registro de especialidade e CRM para itens de honorários.
-- Cálculo automático: **valor auditado = valor apresentado − (glosa + ajuste)**.
+- Cálculo automático: **valor auditado = valor apresentado − glosa + ajuste**.
 - Reaproveitamento de OCS e especificações já cadastradas.
 - Painel com indicadores e guias recentes.
 - Relatórios organizados por módulo, prontos para impressão/PDF.
+- Número do atendimento editável, rodapé padrão e registro da data de finalização.
+- Sugestões reutilizáveis das justificativas já registradas.
 - Controle de acesso com usuários, troca obrigatória de senha inicial e administração de contas.
+- Guias finalizadas podem ser editadas por até 30 dias; depois disso permanecem disponíveis apenas para consulta e impressão.
 
 ## Requisitos
 

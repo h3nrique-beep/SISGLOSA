@@ -12,6 +12,7 @@ const MODULES = [
   'Glosa de honorário médico', 'Glosa de taxa', 'Glosa de material', 'Glosa de medicamento',
   'Glosa de exame de imagem', 'Glosa de exame laboratorial', 'Glosa de nutrição', 'Glosa de OPME', 'Glosa de fisioterapia',
 ];
+const FINALIZED_EDIT_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 const sessions = new Map();
 let db;
 const databaseFile = process.env.DB_FILE || path.join(ROOT, 'data', 'guias.db');
@@ -48,14 +49,17 @@ async function initializeDatabase() {
   const longText = mysql ? 'TEXT' : 'TEXT';
   const execute = (sql) => mysql ? db.query(sql) : Promise.resolve(db.exec(sql));
   await execute(`CREATE TABLE IF NOT EXISTS users (id ${id}, username ${text} NOT NULL UNIQUE, password_hash ${text} NOT NULL)`);
-  await execute(`CREATE TABLE IF NOT EXISTS guides (number ${id}, ocs ${text} NOT NULL, patient ${text} NOT NULL, billed ${money} NOT NULL, specialty ${text} NOT NULL DEFAULT '', crm ${text} NOT NULL DEFAULT '', status ${text} NOT NULL DEFAULT 'RASCUNHO', created_at ${createdAt})`);
+  await execute(`CREATE TABLE IF NOT EXISTS guides (number ${id}, ocs ${text} NOT NULL, patient ${text} NOT NULL, billed ${money} NOT NULL, specialty ${text} NOT NULL DEFAULT '', crm ${text} NOT NULL DEFAULT '', attendance_number ${text} NOT NULL DEFAULT '', status ${text} NOT NULL DEFAULT 'RASCUNHO', finalized_at ${mysql ? 'TIMESTAMP NULL' : 'TEXT'}, created_at ${createdAt})`);
   await execute(`CREATE TABLE IF NOT EXISTS guide_items (id ${id}, guide_number INT NOT NULL, module ${text} NOT NULL, specification ${text} NOT NULL, specialty ${text} NOT NULL DEFAULT '', crm ${text} NOT NULL DEFAULT '', justification ${longText} NOT NULL, amount ${money} NOT NULL, FOREIGN KEY (guide_number) REFERENCES guides(number))`);
   const userColumns = mysql ? await all('SHOW COLUMNS FROM users') : await all('PRAGMA table_info(users)');
   const names = new Set(userColumns.map((column) => mysql ? column.Field : column.name));
   if (!names.has('role')) await execute(`ALTER TABLE users ADD COLUMN role ${text} NOT NULL DEFAULT 'user'`);
   if (!names.has('must_change_password')) await execute(`ALTER TABLE users ADD COLUMN must_change_password ${mysql ? 'TINYINT(1)' : 'INTEGER'} NOT NULL DEFAULT 1`);
   const guideColumns = mysql ? await all('SHOW COLUMNS FROM guides') : await all('PRAGMA table_info(guides)');
-  if (!new Set(guideColumns.map((column) => mysql ? column.Field : column.name)).has('status')) { await execute(`ALTER TABLE guides ADD COLUMN status ${text} NOT NULL DEFAULT 'RASCUNHO'`); await execute("UPDATE guides SET status='FINALIZADA'"); }
+  const guideNames = new Set(guideColumns.map((column) => mysql ? column.Field : column.name));
+  if (!guideNames.has('status')) { await execute(`ALTER TABLE guides ADD COLUMN status ${text} NOT NULL DEFAULT 'RASCUNHO'`); await execute("UPDATE guides SET status='FINALIZADA'"); }
+  if (!guideNames.has('attendance_number')) await execute(`ALTER TABLE guides ADD COLUMN attendance_number ${text} NOT NULL DEFAULT ''`);
+  if (!guideNames.has('finalized_at')) await execute(`ALTER TABLE guides ADD COLUMN finalized_at ${mysql ? 'TIMESTAMP NULL' : 'TEXT'}`);
   if (!mysql) db.exec(`UPDATE guide_items SET specialty=COALESCE((SELECT specialty FROM guides WHERE number=guide_number), '') WHERE specialty=''; UPDATE guide_items SET crm=COALESCE((SELECT crm FROM guides WHERE number=guide_number), '') WHERE crm='';`);
 }
 
@@ -73,6 +77,9 @@ function clearUserSessions(username) { for (const [id, session] of sessions) if 
 const escape = (value) => String(value ?? '').replace(/[&<>'"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]));
 const money = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value || 0));
 const isHonor = (module) => module.includes('honorário');
+const validModule = (module) => MODULES.includes(module) || /^(Ajuste|Glosa):\s+\S/.test(module);
+function finalizedDate(value) { if (!value) return null; if (value instanceof Date) return value; const text = String(value); return new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(text) ? text : `${text.replace(' ', 'T')}Z`); }
+function guideAccess(data) { const finalized = finalizedDate(data.finalized_at); const editableUntil = finalized ? new Date(finalized.getTime() + FINALIZED_EDIT_WINDOW_MS) : null; return { editable: data.status !== 'FINALIZADA' || !editableUntil || Date.now() <= editableUntil.getTime(), editable_until: editableUntil?.toISOString() || null }; }
 const cookie = (request, name) => Object.fromEntries((request.headers.cookie || '').split(';').map((part) => part.trim().split('=')))[name];
 const json = (response, status, value, headers = {}) => response.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', ...headers }).end(JSON.stringify(value));
 const fail = (response, status, message) => json(response, status, { error: message });
@@ -87,18 +94,18 @@ function body(request) {
   });
 }
 async function guide(id) {
-  const data = await one('SELECT number, ocs, patient, billed, status FROM guides WHERE number=?', [id]);
+  const data = await one('SELECT number, ocs, patient, billed, attendance_number, status, finalized_at FROM guides WHERE number=?', [id]);
   if (!data) return null;
   data.items = (await all('SELECT module, specification, specialty, crm, justification, amount FROM guide_items WHERE guide_number=? ORDER BY id', [id])).map((item) => ({ ...item, amount: Number(item.amount) }));
   data.billed = Number(data.billed);
-  return data;
+  return { ...data, ...guideAccess(data) };
 }
-async function listGuides(status) { const valid = ['RASCUNHO', 'FINALIZADA'].includes(status); return (await all(`SELECT number, ocs, patient, billed, status, created_at FROM guides${valid ? ' WHERE status=?' : ''} ORDER BY number DESC LIMIT 100`, valid ? [status] : [])).map((item) => ({ ...item, billed: Number(item.billed) })); }
+async function listGuides(status) { const valid = ['RASCUNHO', 'FINALIZADA'].includes(status); return (await all(`SELECT number, ocs, patient, billed, status, finalized_at, created_at FROM guides${valid ? ' WHERE status=?' : ''} ORDER BY number DESC LIMIT 100`, valid ? [status] : [])).map((item) => ({ ...item, billed: Number(item.billed), ...guideAccess(item) })); }
 async function dashboard() { const counts = await one("SELECT COUNT(*) AS total, SUM(CASE WHEN status='RASCUNHO' THEN 1 ELSE 0 END) AS open, SUM(CASE WHEN status='FINALIZADA' THEN 1 ELSE 0 END) AS finalized FROM guides"); return { total: Number(counts.total || 0), open: Number(counts.open || 0), finalized: Number(counts.finalized || 0), recent: (await listGuides()).slice(0, 5) }; }
 function totals(items, billed) {
   const glosa = items.filter((item) => item.module.startsWith('Glosa')).reduce((sum, item) => sum + Number(item.amount), 0);
   const ajuste = items.filter((item) => item.module.startsWith('Ajuste')).reduce((sum, item) => sum + Number(item.amount), 0);
-  return { glosa, ajuste, auditado: Number(billed) - glosa - ajuste };
+  return { glosa, ajuste, auditado: Number(billed) - glosa + ajuste };
 }
 function reportPage(data) { return reportPageBody(data).replace('</head>', '<style>@page{size:A4;margin:11.09mm 9.42mm 14.94mm 10.81mm}*{box-sizing:border-box}body{width:auto!important;margin:0!important;padding:0!important}table{max-width:100%!important}h3{border:1px solid #000;border-bottom:0;margin:12px 0 0!important;padding:2px}h3+table{margin-top:0!important}table:not(.summary){table-layout:fixed}table:not(.summary) th:nth-child(1),table:not(.summary) td:nth-child(1){width:5.25%}table:not(.summary) th:nth-child(2),table:not(.summary) td:nth-child(2){width:37.22%}table:not(.summary) th:nth-child(3),table:not(.summary) td:nth-child(3){width:46.84%}table:not(.summary) th:nth-child(4),table:not(.summary) td:nth-child(4){width:10.69%}</style></head>'); }
 function reportPageBody(data) {
@@ -111,23 +118,26 @@ function reportPageBody(data) {
       return `<h3>${escape(label)}</h3><table><thead><tr><th>Item</th><th>Especificação</th><th>Justificativa</th><th>${prefix}</th></tr></thead><tbody>${items.map((item, index) => { const details = [item.specification, honor && item.specialty, honor && item.crm ? `CRM: ${item.crm}` : ''].filter(Boolean).join(' - '); return `<tr><td>${index + 1}</td><td>${escape(details)}</td><td>${escape(item.justification).replaceAll('\n', '<br>')}</td><td class="money">${money(item.amount)}</td></tr>`; }).join('')}</tbody><tfoot><tr><th colspan="3">Total de ${escape(label)}</th><th class="money">${money(total)}</th></tr></tfoot></table>`;
     }).join('')}`;
   }).join('');
-  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Relatório de Glosa e Ajuste</title><style>body{width:190mm;margin:0 auto;padding:9mm;font:9pt 'Times New Roman',serif;color:#000}.official{text-align:center;font:700 8pt Arial;line-height:1.2;margin-bottom:9px}.official img{display:block;width:24px;max-height:32px;object-fit:contain;margin:auto}.identity{font-weight:700;line-height:1.35}h2,h3{text-align:center}h2{font-size:12pt;margin:18px 0 8px}h3{font-size:10pt;margin:12px 0 4px}table{border-collapse:collapse;width:100%;margin:6px 0 12px}th,td{border:1px solid #000;padding:3px;vertical-align:top;text-align:left}th{text-align:center}.summary{table-layout:fixed}.summary th:nth-child(1),.summary td:nth-child(1){width:14.35%}.summary th:nth-child(2),.summary td:nth-child(2){width:14.35%}.summary th:nth-child(3),.summary td:nth-child(3){width:11.67%}.summary th:nth-child(4),.summary td:nth-child(4){width:14.91%}.summary th:nth-child(5),.summary td:nth-child(5){width:44.72%}.summary td{height:54px}.observation{font-size:8pt}.money{text-align:right;white-space:nowrap}tfoot th{text-align:right}@media print{body{margin:0}}</style></head><body><div class="official"><img src="${reportLogo}" alt="Exército Brasileiro">MINISTÉRIO DA DEFESA<br>EXÉRCITO BRASILEIRO<br>CMDO 15ª BDA INF MEC</div><p class="identity">OCS: ${escape(data.ocs)}<br>PACIENTE: ${escape(data.patient)}<br>GUIA Nº: ${escape(data.number)}</p><table class="summary"><thead><tr><th>Valor<br>Apresentado</th><th>Glosa</th><th>Ajuste</th><th>Valor<br>Auditado</th><th>Observação</th></tr></thead><tbody><tr><td class="money">${money(data.billed)}</td><td class="money">${money(summary.glosa)}</td><td class="money">${money(summary.ajuste)}</td><td class="money">${money(summary.auditado)}</td><td class="observation">Com relação às glosas e possíveis recursos, favor cumprir rigorosamente os prazos e procedimentos previstos nas cláusulas 7.1.21 até a cláusula 7.1.31 do Termo de Contrato celebrado entre as partes.</td></tr></tbody></table>${sections}<p style="margin-top:26px">Quartel em Cascavel-PR, ${new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}</p><div style="display:flex;gap:20px;margin-top:38px;font:9pt Arial"><div style="width:45%;border-top:1px solid;text-align:center;padding-top:4px">Médico Auditor da Seção de Auditoria de Contas Médicas</div><div style="width:45%;border-top:1px solid;text-align:center;padding-top:4px">Enfermeira Auditora da Seção de Auditoria de Contas Médicas</div></div><script>window.addEventListener('load', () => window.print())</script></body></html>`;
+  return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Relatório de Glosa e Ajuste</title><style>body{width:190mm;margin:0 auto;padding:9mm 9mm 18mm;font:9pt 'Times New Roman',serif;color:#000}.official{text-align:center;font:700 8pt Arial;line-height:1.2;margin-bottom:9px}.official img{display:block;width:24px;max-height:32px;object-fit:contain;margin:auto}.identity{font-weight:700;line-height:1.35}h2,h3{text-align:center}h2{font-size:12pt;margin:18px 0 8px}h3{font-size:10pt;margin:12px 0 4px}table{border-collapse:collapse;width:100%;margin:6px 0 12px}th,td{border:1px solid #000;padding:3px;vertical-align:top;text-align:left}th{text-align:center}.summary{table-layout:fixed}.summary th:nth-child(1),.summary td:nth-child(1){width:14.35%}.summary th:nth-child(2),.summary td:nth-child(2){width:14.35%}.summary th:nth-child(3),.summary td:nth-child(3){width:11.67%}.summary th:nth-child(4),.summary td:nth-child(4){width:14.91%}.summary th:nth-child(5),.summary td:nth-child(5){width:44.72%}.summary td{height:54px}.observation{font-size:8pt}.money{text-align:right;white-space:nowrap}tfoot th{text-align:right}.report-footer{position:fixed;bottom:5mm;left:10mm;right:10mm;display:flex;gap:8px;align-items:center;font:8pt 'Times New Roman',serif}.report-footer .leader{flex:1;border-bottom:1px dotted #777}.report-pages{white-space:nowrap}.report-pages::after{content:counter(page) '/' counter(pages)}@media print{body{margin:0}@page{margin:11.09mm 9.42mm 14.94mm 10.81mm}}</style></head><body><div class="official"><img src="${reportLogo}" alt="Exército Brasileiro">MINISTÉRIO DA DEFESA<br>EXÉRCITO BRASILEIRO<br>CMDO 15ª BDA INF MEC</div><p class="identity">OCS: ${escape(data.ocs)}<br>PACIENTE: ${escape(data.patient)}<br>GUIA Nº: ${escape(data.number)}</p><table class="summary"><thead><tr><th>Valor<br>Apresentado</th><th>Glosa</th><th>Ajuste</th><th>Valor<br>Auditado</th><th>Observação</th></tr></thead><tbody><tr><td class="money">${money(data.billed)}</td><td class="money">${money(summary.glosa)}</td><td class="money">${money(summary.ajuste)}</td><td class="money">${money(summary.auditado)}</td><td class="observation">Com relação às glosas e possíveis recursos, favor cumprir rigorosamente os prazos e procedimentos previstos nas cláusulas 7.1.21 até a cláusula 7.1.31 do Termo de Contrato celebrado entre as partes.</td></tr></tbody></table>${sections}<p style="margin-top:26px">Quartel em Cascavel-PR, ${new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}</p><div style="display:flex;gap:20px;margin-top:38px;font:9pt Arial"><div style="width:45%;border-top:1px solid;text-align:center;padding-top:4px">Médico Auditor da Seção de Auditoria de Contas Médicas</div><div style="width:45%;border-top:1px solid;text-align:center;padding-top:4px">Enfermeira Auditora da Seção de Auditoria de Contas Médicas</div></div><footer class="report-footer"><span>(Relatório de Glosas do Atendimento ${escape(data.attendance_number || '________________')}</span><span class="leader"></span><span class="report-pages"></span><span>)</span></footer><script>window.addEventListener('load', () => window.print())</script></body></html>`;
 }
 async function save(data) {
   const status = data.status === 'FINALIZADA' ? 'FINALIZADA' : 'RASCUNHO';
-  const ocs = String(data.ocs || '').trim(), patient = String(data.patient || '').trim(), billed = Number(data.billed || 0);
+  const ocs = String(data.ocs || '').trim(), patient = String(data.patient || '').trim(), attendanceNumber = String(data.attendanceNumber || '').trim(), billed = Number(data.billed || 0);
   if (status === 'FINALIZADA' && (!ocs || !patient)) throw new Error('Informe OCS e paciente.');
   if (!Number.isFinite(billed) || billed < 0) throw new Error('Valor apresentado inválido.');
   const items = (Array.isArray(data.items) ? data.items : []).map((item) => {
     const module = String(item.module || ''); const amount = Number(item.amount || 0);
-    if (!MODULES.includes(module) || !Number.isFinite(amount) || amount < 0 || (status === 'FINALIZADA' && (!String(item.specification || '').trim() || !String(item.justification || '').trim()))) throw new Error('Preencha os campos obrigatórios de cada item.');
+    if (!validModule(module) || !Number.isFinite(amount) || amount < 0 || (status === 'FINALIZADA' && (!String(item.specification || '').trim() || !String(item.justification || '').trim()))) throw new Error('Preencha os campos obrigatórios de cada item.');
     return { module, specification: String(item.specification).trim(), specialty: isHonor(module) ? String(item.specialty || '').trim() : '', crm: isHonor(module) ? String(item.crm || '').trim() : '', justification: String(item.justification).trim(), amount: amount.toFixed(2) };
   });
   if (status === 'FINALIZADA' && !items.length) throw new Error('Inclua pelo menos um item.');
   const id = await transaction(async (connection) => {
     let id = Number(data.number || 0);
-    if (id && !(await run('UPDATE guides SET ocs=?, patient=?, billed=?, status=? WHERE number=?', [ocs, patient, billed.toFixed(2), status, id], connection)).changes) throw new Error('Guia não encontrada.');
-    else id = Number((await run('INSERT INTO guides (ocs, patient, billed, status) VALUES (?, ?, ?, ?)', [ocs, patient, billed.toFixed(2), status], connection)).lastInsertRowid);
+    const existing = id ? await one('SELECT status, finalized_at FROM guides WHERE number=?', [id], connection) : null;
+    if (id && !existing) throw new Error('Guia não encontrada.');
+    if (existing && !guideAccess(existing).editable) throw new Error('Esta guia foi finalizada há mais de 30 dias e não pode mais ser editada.');
+    if (id) await run(`UPDATE guides SET ocs=?, patient=?, billed=?, attendance_number=?, status=?, finalized_at=${status === 'FINALIZADA' ? 'COALESCE(finalized_at, CURRENT_TIMESTAMP)' : 'NULL'} WHERE number=?`, [ocs, patient, billed.toFixed(2), attendanceNumber, status, id], connection);
+    else id = Number((await run(`INSERT INTO guides (ocs, patient, billed, attendance_number, status, finalized_at) VALUES (?, ?, ?, ?, ?, ${status === 'FINALIZADA' ? 'CURRENT_TIMESTAMP' : 'NULL'})`, [ocs, patient, billed.toFixed(2), attendanceNumber, status], connection)).lastInsertRowid);
     await run('DELETE FROM guide_items WHERE guide_number=?', [id], connection);
     for (const item of items) await run('INSERT INTO guide_items (guide_number, module, specification, specialty, crm, justification, amount) VALUES (?, ?, ?, ?, ?, ?, ?)', [id, item.module, item.specification, item.specialty, item.crm, item.justification, item.amount], connection);
     return id;
@@ -160,7 +170,9 @@ const server = http.createServer(async (request, response) => {
     if (pathname === '/api/guides' && request.method === 'GET') return json(response, 200, await listGuides(url.searchParams.get('status')));
     if (pathname === '/api/guides' && request.method === 'POST') return json(response, 201, await save(await body(request)));
     if (pathname === '/api/options/ocs') return json(response, 200, (await all("SELECT DISTINCT ocs FROM guides WHERE trim(ocs)<>'' ORDER BY ocs")).map((row) => row.ocs));
+    if (pathname === '/api/options/modules') return json(response, 200, [...new Set([...MODULES, ...(await all('SELECT DISTINCT module FROM guide_items WHERE module NOT IN (' + MODULES.map(() => '?').join(',') + ') ORDER BY module', MODULES)).map((row) => row.module)])]);
     if (pathname === '/api/options/specifications') return json(response, 200, (await all('SELECT DISTINCT specification FROM guide_items WHERE module=? ORDER BY specification', [url.searchParams.get('module') || ''])).map((row) => row.specification));
+    if (pathname === '/api/options/justifications') return json(response, 200, (await all("SELECT DISTINCT justification FROM guide_items WHERE trim(justification)<>'' AND justification NOT LIKE 'Ajuste, será pago%' ORDER BY justification")).map((row) => row.justification));
     const match = pathname.match(/^\/api\/guides\/(\d+)(\/report)?$/); if (match) { const data = await guide(Number(match[1])); if (!data) return fail(response, 404, 'Guia não encontrada.'); if (match[2]) { response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }); return response.end(reportPage(data)); } if (request.method === 'GET') return json(response, 200, data); if (request.method === 'DELETE') { await transaction(async (connection) => { await run('DELETE FROM guide_items WHERE guide_number=?', [data.number], connection); await run('DELETE FROM guides WHERE number=?', [data.number], connection); }); return json(response, 200, {}); } }
     return fail(response, 404, 'Rota não encontrada.');
   } catch (error) { console.error(error); return fail(response, 400, error.message || 'Não foi possível concluir a operação.'); }

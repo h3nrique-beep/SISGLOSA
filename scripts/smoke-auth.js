@@ -1,6 +1,7 @@
 const assert = require('node:assert/strict');
 const { spawn } = require('node:child_process');
 const fs = require('node:fs');
+const { DatabaseSync } = require('node:sqlite');
 const os = require('node:os');
 const path = require('node:path');
 
@@ -30,6 +31,13 @@ async function wait() {
     response = await request('/api/password', { method: 'POST', body: JSON.stringify({ password: 'Auditor@123' }) }); assert.equal(response.status, 200);
     response = await request('/api/guides', { method: 'POST', body: JSON.stringify({ ocs: '', patient: '', billed: 0, items: [], status: 'RASCUNHO' }) }); assert.equal((await response.json()).status, 'RASCUNHO');
     response = await request('/api/dashboard'); assert.equal((await response.json()).open, 1);
+    response = await request('/api/guides', { method: 'POST', body: JSON.stringify({ ocs: 'OCS teste', patient: 'Paciente teste', attendanceNumber: '2.706.875', billed: 100, status: 'FINALIZADA', items: [{ module: 'Glosa: Taxa personalizada', specification: 'Taxa teste', justification: 'Justificativa registrada pelo auditor.', amount: 20 }, { module: 'Ajuste de honorários', specification: 'Honorário teste', justification: 'Ajuste, será pago R$ 10,00 conforme as regras da CBHPM Edição 2014 e de acordo com o item 5 do referencial de custos do contrato.', amount: 10 }] }) }); const finalized = await response.json(); assert.equal(finalized.status, 'FINALIZADA'); assert.equal(finalized.attendance_number, '2.706.875'); assert.ok(finalized.finalized_at);
+    response = await request('/api/options/modules'); assert.ok((await response.json()).includes('Glosa: Taxa personalizada'));
+    response = await request('/api/options/justifications'); assert.ok((await response.json()).includes('Justificativa registrada pelo auditor.'));
+    response = await request(`/api/guides/${finalized.number}/report`); const report = await response.text(); assert.match(report, /Relatório de Glosas do Atendimento 2\.706\.875/); assert.match(report, /R\$\s*90,00/);
+    const database = new DatabaseSync(path.join(folder, 'guias.db')); database.prepare("UPDATE guides SET finalized_at=datetime('now', '-31 days') WHERE number=?").run(finalized.number);
+    response = await request('/api/guides', { method: 'POST', body: JSON.stringify({ ...finalized, status: 'FINALIZADA' }) }); assert.equal(response.status, 400);
+    database.close();
     cookie = '';
     await request('/api/login', { method: 'POST', body: JSON.stringify({ username: 'admin', password: 'Admin@Nova1' }) });
     response = await request('/api/users'); assert.equal((await response.json()).length, 2);
