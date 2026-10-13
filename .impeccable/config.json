@@ -1,0 +1,27 @@
+{
+  "buildPath": "comp",
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "repeated-container-text",
+        "value": "*",
+        "files": [
+          "public/index.html"
+        ],
+        "createdAt": "2026-10-11T23:02:09.066Z",
+        "reason": "Claude triage: initial R$ 0,00 placeholders in section.metrics, replaced by live totals on load"
+      },
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          "public/index.html"
+        ],
+        "createdAt": "2026-10-11T23:02:09.147Z",
+        "reason": "Claude triage: .table-wrap frames tables whose cells carry 11-12px inset"
+      }
+    ]
+  }
+}

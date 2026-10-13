@@ -4,3 +4,9 @@ target/
 tmp/
 node_modules/
 .env
+.idea/
+.claude/
+tools/
+.impeccable/mocks/
+.impeccable/questions/
+.impeccable/hook.cache.json

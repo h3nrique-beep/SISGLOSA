@@ -1,17 +1,20 @@
 {
   "name": "sisglosa",
   "private": true,
-  "version": "1.1.4",
+  "version": "2.0.0",
   "description": "SISGLOSA - sistema local de relatórios de glosa",
   "scripts": {
     "start": "node server.js",
     "migrate:sqlite": "node scripts/migrate-sqlite-to-mysql.js",
-    "check": "node --check server.js && node --check public/app.js && node scripts/smoke-auth.js"
+    "check:syntax": "node --check server.js && node --check public/app.js && node --check lib/passwords.js && node --check scripts/migrate-sqlite-to-mysql.js && node --check scripts/smoke-auth.js",
+    "check": "npm run check:syntax && node scripts/smoke-auth.js"
   },
   "dependencies": {
+    "adm-zip": "^0.6.1",
+    "bootstrap-icons": "^1.13.1",
     "mysql2": "^3.14.4"
   },
   "engines": {
-    "node": ">=22.5.0"
+    "node": ">=22.13.0"
   }
 }

@@ -8,7 +8,7 @@
   Sistema local de relatórios de ajuste e glosa para auditoria de contas médicas do PMGU — Posto Médico da Guarnição de Cascavel.
 </p>
 
-**Versão:** 1.1.4
+**Versão:** 2.0.0
 
 ## Visão geral
 
@@ -30,7 +30,7 @@ O SISGLOSA centraliza o registro das guias, calcula os valores auditados e gera 
 
 ## Requisitos
 
-- Node.js 22.5 ou superior
+- Node.js 22.13 ou superior
 
 ## Instalação e execução
 
@@ -39,7 +39,7 @@ npm install
 npm start
 ```
 
-Acesse `http://localhost:8081`.
+Acesse `http://localhost:8080`.
 
 No primeiro acesso, utilize as credenciais abaixo e altere a senha imediatamente:
 
@@ -78,7 +78,21 @@ npm start              # inicia a aplicação
 npm run migrate:sqlite # migra SQLite para MySQL/MariaDB
 ```
 
-O servidor usa a porta `8081` e aceita conexões apenas em `127.0.0.1`. Para alterar a porta, defina a variável `PORT` antes da execução.
+O servidor usa a porta `8080` e aceita conexões apenas em `127.0.0.1`. Para alterar a porta, defina a variável `PORT` antes da execução.
+
+## Atualizações pelo administrador
+
+Na tela **Administração**, um administrador pode enviar um ZIP oficial. O pacote deve trazer, na raiz, o manifesto `sisglosa-update.json` e somente os arquivos indicados nele:
+
+```json
+{
+  "product": "SISGLOSA",
+  "version": "2.1.0",
+  "files": ["public/app.js", "public/styles.css"]
+}
+```
+
+São aceitos `server.js`, `lib/passwords.js`, `public/index.html`, `public/app.js` e `public/styles.css`. O sistema valida o manifesto, bloqueia arquivos fora dessa lista e guarda uma cópia dos arquivos substituídos em `data/updates/backups`. Atualizações que incluam `server.js` ou `lib/passwords.js` exigem reinício do serviço.
 
 ## Implantação no Proxmox VE
 
