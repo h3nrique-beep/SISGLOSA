@@ -7,7 +7,7 @@
   <link rel="icon" type="image/jpeg" href="/sisglosa.jpg">
   <link rel="stylesheet" href="/styles.css">
   <link rel="stylesheet" href="/bootstrap-icons.css">
-  <style>[hidden]{display:none!important}td select.module{min-width:220px;text-align:center}.module-guide{justify-content:center}.module-guide strong{margin-right:0}.preview-card{margin-top:18px}.preview-paper{overflow:auto;max-height:900px;padding:24px;background:#dfe5ea;border-radius:12px}.document-model{width:190mm;min-height:267mm;margin:auto;padding:9mm;background:#fff;color:#111;font:9px Arial;box-shadow:0 2px 12px #0002}.document-model .official,.document-model h3{text-align:center;font-weight:bold}.document-model h3{font-size:11px;margin:18px 0 5px}.document-model p{margin:7px 0}.document-model table{min-width:0;margin:7px 0 13px}.document-model th,.document-model td{padding:4px;border:1px solid #111;background:#fff}.document-model .money{text-align:right;white-space:nowrap}.document-model .signatures{display:flex;gap:32px;margin-top:38px}.document-model .signatures div{flex:1;border-top:1px solid #111;padding-top:4px;text-align:center}@media(max-width:760px){.preview-paper{padding:8px}.document-model{transform:scale(.54);transform-origin:top left;margin-bottom:-125mm}}</style>
+  <style>[hidden]{display:none!important}td select.module{min-width:220px;text-align:center}.module-guide{justify-content:center}.module-guide strong{margin-right:0}.preview-card{margin-top:18px}.preview-paper{overflow:auto;max-height:900px;padding:24px;background:#dfe5ea;border-radius:12px}.document-model{width:190mm;min-height:267mm;margin:auto;padding:9mm;background:#fff;color:#111;font:9px Arial;box-shadow:0 2px 12px #0002}.document-model .official,.document-model h3{text-align:center;font-weight:bold}.document-model h3{font-size:11px;margin:18px 0 5px}.document-model p{margin:7px 0}.document-model table{min-width:0;margin:7px 0 13px}.document-model th,.document-model td{padding:4px;border:1px solid #111;background:#fff}.document-model .money{text-align:right;white-space:nowrap}.document-model .signatures{display:flex;gap:32px;margin-top:38px}.document-model .signatures div{flex:1;border-top:1px solid #111;padding-top:4px;text-align:center}@media(max-width:760px){.preview-paper{padding:8px}}</style>
   <style>.document-model{font-family:"Times New Roman",serif;font-size:9pt;box-shadow:none}.document-model .official{font:700 8pt Arial;margin-bottom:9px;line-height:1.2}.document-model .official-logo{display:block;width:24px;max-height:32px;object-fit:contain;margin:0 auto 2px}.document-model .identity{font-weight:700;line-height:1.35}.document-model h2{font-size:12pt;text-align:center;margin:18px 0 8px}.document-model h3{font-size:10pt;margin:12px 0 4px}.document-model table{font-size:9pt;border-collapse:collapse;margin:6px 0 12px}.document-model th,.document-model td{border:1px solid #000;padding:3px;vertical-align:top}.document-model .summary th{text-align:center}.document-model .summary td{height:auto;min-height:76px;padding-bottom:6px}.document-model .summary .observation{font-size:8pt;line-height:1.25;overflow-wrap:break-word}.document-model .total{text-align:right}.document-model .total th{font-weight:700}.document-model .signatures{font:9pt Arial;gap:20px}.document-model .signatures div{padding-top:4px}</style>
   <style>.document-model .summary{table-layout:fixed}.document-model .summary th:nth-child(1),.document-model .summary td:nth-child(1){width:14.35%}.document-model .summary th:nth-child(2),.document-model .summary td:nth-child(2){width:14.35%}.document-model .summary th:nth-child(3),.document-model .summary td:nth-child(3){width:11.67%}.document-model .summary th:nth-child(4),.document-model .summary td:nth-child(4){width:14.91%}.document-model .summary th:nth-child(5),.document-model .summary td:nth-child(5){width:44.72%}</style>
   <style>.money-input{display:flex;align-items:center;border:1px solid #c7d3df;border-radius:8px;background:#fff;overflow:hidden}.money-input:focus-within{border-color:#1769aa;box-shadow:0 0 0 3px #1769aa20}.money-input>span{padding-left:10px;font-weight:700;white-space:nowrap}.money-input input{min-width:0!important;border:0!important;box-shadow:none!important;padding-left:7px}.table-wrap .money-input{min-width:118px}</style>
@@ -15,6 +15,13 @@
 </head>
 <body class="loading">
   <main id="login-view" class="login-shell">
+    <div class="login-split">
+    <aside class="login-brand" aria-label="Sobre o sistema">
+      <p class="login-kicker">PMGU · Posto Médico da Guarnição de Cascavel</p>
+      <h2>Auditoria de contas hospitalares</h2>
+      <p>Registro de glosas e ajustes por módulo, com cálculo do valor auditado e relatório no padrão institucional.</p>
+      <ul><li><i class="bi bi-clipboard2-pulse" aria-hidden="true"></i>Honorários, taxas, materiais, medicamentos e OPME</li><li><i class="bi bi-calculator" aria-hidden="true"></i>Valor auditado calculado automaticamente</li><li><i class="bi bi-file-earmark-medical" aria-hidden="true"></i>Relatório pronto para impressão e PDF</li></ul>
+    </aside>
     <section class="login-card">
       <img class="sisglosa-logo" src="/sisglosa.jpg" alt="SISGLOSA">
       <h1>Acesso do usuário</h1>
@@ -26,6 +33,8 @@
       </form>
       <p id="login-error" class="error" hidden></p>
     </section>
+    </div>
+    <p class="login-credit">Desenvolvido por Cb Chimelo - 2026</p>
   </main>
 
   <main id="password-view" class="login-shell" hidden>
@@ -56,9 +65,11 @@
 
     <main class="app-shell">
       <section id="dashboard-screen" class="screen">
-        <div class="page-title"><div><h1>Dashboard de guias</h1><p class="muted">Acompanhe o andamento das auditorias.</p></div><div class="title-actions"><button id="dashboard-new-guide">Criar guia</button><button id="dashboard-open-guides" class="secondary">Ver guias em aberto</button></div></div>
+        <div class="page-title"><div><h1>Painel de auditoria</h1><p class="muted">Andamento das guias e valores das contas ainda em auditoria.</p></div><div class="title-actions"><button id="dashboard-new-guide">Criar guia</button><button id="dashboard-open-guides" class="secondary">Ver guias em aberto</button></div></div>
         <section class="dashboard-metrics"><article><span>Total de guias</span><strong id="dashboard-total">0</strong></article><article class="open"><span>Em aberto</span><strong id="dashboard-open">0</strong></article><article class="done"><span>Finalizadas</span><strong id="dashboard-finalized">0</strong></article></section>
-        <section class="panel"><div class="section-heading"><div><h2>Últimas guias</h2><p>As cinco guias mais recentes.</p></div></div><div class="table-wrap"><table class="dashboard-table"><thead><tr><th>Nº</th><th>OCS</th><th>Paciente</th><th>Status</th><th>Finalizada em</th><th>Prazo de edição</th><th></th></tr></thead><tbody id="dashboard-guides"></tbody></table></div></section>
+        <section id="dashboard-values-panel" class="dashboard-open-values" aria-labelledby="dashboard-values-title" hidden><h2 id="dashboard-values-title">Em auditoria <span id="dashboard-values-count" class="muted"></span></h2><div class="dashboard-values"><article><span>Valor apresentado</span><strong id="dashboard-billed">R$ 0,00</strong><small>Contas das guias em aberto</small></article><article class="glosa"><span>Total glosado</span><strong id="dashboard-glosa">R$ 0,00</strong><small id="dashboard-glosa-rate">—</small></article><article class="ajuste"><span>Total ajustado</span><strong id="dashboard-ajuste">R$ 0,00</strong><small>Ajustes lançados nas guias em aberto</small></article><article class="audited"><span>Valor auditado</span><strong id="dashboard-audited">R$ 0,00</strong><small>Apresentado − glosa + ajuste</small></article></div></section>
+          <section class="panel"><div class="section-heading"><div><h2>Últimas guias</h2><p>As cinco guias mais recentes.</p></div></div><div class="table-wrap"><table class="dashboard-table"><thead><tr><th>Nº</th><th>OCS</th><th>Paciente</th><th>Status</th><th>Finalizada em</th><th>Prazo de edição</th><th></th></tr></thead><tbody id="dashboard-guides"></tbody></table></div></section>
+
       </section>
       <section id="guide-screen" class="screen" hidden>
         <div class="page-title"><div><h1>Guia de ajuste e glosa</h1><p class="muted">Preencha os dados e lance os itens da auditoria.</p></div><div class="title-actions guide-actions"><button id="new-guide" class="secondary with-label" type="button"><i class="bi bi-plus-lg" aria-hidden="true"></i>Nova guia</button><button id="preview-guide" class="secondary with-label" type="button"><i class="bi bi-eye" aria-hidden="true"></i>Pré-visualizar</button><button id="print-guide" class="secondary with-label" type="button" title="Disponível após finalizar a guia" disabled><i class="bi bi-printer" aria-hidden="true"></i>Imprimir / PDF</button><button id="save-guide" class="secondary with-label" type="button"><i class="bi bi-floppy" aria-hidden="true"></i>Salvar</button><button id="finalize-guide" class="with-label" type="button"><i class="bi bi-check2-circle" aria-hidden="true"></i>Finalizar guia</button></div></div>
@@ -73,6 +84,7 @@
           <section class="panel items-panel">
             <div class="section-heading"><div><h2>Itens da auditoria</h2><p>Adicione os itens da guia um de cada vez.</p></div><button id="add-item" type="button" class="with-label"><i class="bi bi-plus-lg" aria-hidden="true"></i>Adicionar item</button></div>
             <div class="module-guide"><span>Fluxo atual</span><strong id="module-name"></strong><span id="module-step"></span><button id="previous-module" type="button" class="text-button with-label"><i class="bi bi-arrow-left" aria-hidden="true"></i>Módulo anterior</button><button id="next-module" type="button" class="text-button with-label">Próximo módulo<i class="bi bi-arrow-right" aria-hidden="true"></i></button><button id="show-all" type="button" class="text-button">Ver concluídos</button></div>
+            <nav id="module-map" class="module-map" aria-label="Módulos da guia"></nav>
             <div class="table-wrap"><table><thead><tr><th>Módulo</th><th>Especificação</th><th class="honor-column">Especialidade</th><th class="honor-column">CRM</th><th>Justificativa</th><th>Valor</th><th><span class="sr-only">Ações</span></th></tr></thead><tbody id="items"></tbody></table></div>
             <template id="item-template"><tr><td><select class="module" aria-label="Módulo"></select></td><td><input class="specification" autocomplete="off" required aria-label="Especificação"></td><td class="honor-cell"><input class="specialty" autocomplete="off" aria-label="Especialidade"></td><td class="honor-cell"><input class="crm" autocomplete="off" aria-label="CRM"></td><td><div class="justification-composer"><div class="justification-actions"><button type="button" class="suggestion-toggle secondary">Usar justificativa salva</button><button type="button" class="manual-justification-toggle secondary">Redigir justificativa</button></div><textarea class="justification" aria-hidden="true" hidden></textarea></div></td><td><span class="money-input"><span>R$</span><input class="amount" autocomplete="off" inputmode="decimal" value="0,00" required aria-label="Valor"></span></td><td><button type="button" class="remove with-label"><i class="bi bi-trash" aria-hidden="true"></i>Excluir</button></td></tr></template>
           </section>
@@ -82,27 +94,41 @@
 
       <section id="recent-screen" class="screen" hidden><div class="page-title"><div><h1>Guias salvas</h1><p id="recent-description" class="muted">Abra, imprima ou exclua uma guia.</p></div></div><section class="panel table-wrap"><table><thead><tr><th>OCS</th><th>Paciente</th><th>Valor apresentado</th><th>Status</th><th>Finalizada em</th><th>Edição</th><th>Ações</th></tr></thead><tbody id="recent-guides"></tbody></table></section></section>
       <section id="admin-screen" class="screen" hidden>
-        <div class="page-title"><div><h1>Administração do sistema</h1><p class="muted">Gerencie os acessos e aplique pacotes oficiais de atualização.</p></div><p class="summary-chips" aria-live="polite"><span id="user-count-chip" class="chip">—</span><span id="pending-chip" class="chip warn" hidden></span></p></div>
+        <div class="page-title"><div><h1>Administração do sistema</h1><p class="muted">Gerencie os acessos ao sistema.</p></div><p class="summary-chips" aria-live="polite"><span id="user-count-chip" class="chip">—</span><span id="pending-chip" class="chip warn" hidden></span></p></div>
         <div class="admin-layout">
           <section class="panel users-panel"><div class="section-heading"><div><h2>Usuários</h2><p>Redefina a senha apenas quando necessário; o usuário troca a senha temporária no primeiro acesso.</p></div></div><div class="table-wrap"><table class="users-table"><thead><tr><th>Usuário</th><th>Perfil</th><th>Senha</th><th class="end">Ações</th></tr></thead><tbody id="users"></tbody></table></div></section>
-          <section class="panel access-panel"><div class="section-heading"><div><h2>Novo acesso</h2><p>Gera uma senha temporária, exibida uma única vez.</p></div></div><form id="new-user-form" class="stack"><label>Usuário<input name="username" autocomplete="off" required minlength="3" maxlength="40" placeholder="ex.: joao.silva"></label><label>Perfil<select name="role"><option value="user">Usuário — registra guias</option><option value="admin">Administrador — gerencia acessos e atualizações</option></select></label><button class="with-label" type="submit"><i class="bi bi-person-plus" aria-hidden="true"></i>Criar acesso</button></form></section>
+          <section class="panel access-panel"><div class="section-heading"><div><h2>Novo acesso</h2><p>O primeiro acesso usa a senha <strong>123456</strong>; em seguida o usuário cria a própria senha.</p></div></div><form id="new-user-form" class="stack"><label>Usuário<input name="username" autocomplete="off" required minlength="3" maxlength="40" placeholder="ex.: joao.silva"></label><label>Perfil<select name="role"><option value="user">Usuário — registra guias</option><option value="admin">Administrador — gerencia acessos e atualizações</option></select></label><button class="with-label" type="submit"><i class="bi bi-person-plus" aria-hidden="true"></i>Criar acesso</button></form></section>
         </div>
-        <section class="panel update-panel">
-          <div class="section-heading"><div><h2>Atualizações do SISGLOSA</h2><p>Envie um pacote .zip oficial: somente os arquivos autorizados são substituídos.</p></div><p class="update-version">Versão ativa <strong id="update-version">—</strong></p></div>
-          <form id="update-form" class="update-upload"><label class="file-pick"><input id="update-file" name="package" type="file" accept=".zip,application/zip" required><span class="file-pick-button"><i class="bi bi-file-earmark-zip" aria-hidden="true"></i>Escolher pacote</span><span id="update-file-name" class="file-pick-name">Nenhum arquivo selecionado</span></label><button class="with-label" type="submit"><i class="bi bi-cloud-arrow-up" aria-hidden="true"></i>Aplicar pacote</button></form>
-          <p id="update-status" class="update-note" aria-live="polite">Gere o pacote na máquina de desenvolvimento com <code>npm run pacote -- --versao x.y.z --mensagem "…"</code>. Antes de aplicar, o sistema guarda uma cópia dos arquivos substituídos e do banco de dados.</p>
-          <div class="subsection"><h3>Histórico de atualizações</h3><div class="table-wrap"><table class="history-table"><thead><tr><th>Versão</th><th>Tipo</th><th>Mensagem</th><th>Aplicado por</th><th>Arquivos</th><th>Data</th></tr></thead><tbody id="update-history"><tr><td colspan="6" class="empty-cell">Nenhuma atualização aplicada.</td></tr></tbody></table></div></div>
-        </section>
       </section>
       <section id="developer-screen" class="screen" hidden>
-        <div class="page-title"><div><h1>Operação do sistema</h1><p class="muted">Estado do serviço e dados para a implantação e o suporte.</p></div><p class="summary-chips"><span id="health-chip" class="chip"><span class="status-dot" aria-hidden="true"></span><span id="health-status">Verificando…</span></span></p></div>
-        <div class="admin-layout">
-          <section class="panel"><div class="section-heading"><div><h2>Sistema em execução</h2><p id="health-detail">Aguardando consulta.</p></div></div>
-            <dl class="facts"><div><dt>Aplicação</dt><dd>SISGLOSA <span id="ops-version" class="muted"></span></dd></div><div><dt>Banco de dados</dt><dd id="ops-database">—</dd></div><div><dt>Node.js</dt><dd id="ops-node">—</dd></div><div><dt>Tempo ativo</dt><dd id="ops-uptime">—</dd></div><div><dt>Pacotes aplicados</dt><dd id="ops-updates">—</dd></div></dl></section>
-          <section class="panel"><div class="section-heading"><div><h2>Implantação</h2><p>Proxmox com Nginx e systemd.</p></div></div><p class="muted">O roteiro está em <code>deploy/proxmox/README.md</code>. O serviço escuta em <code>127.0.0.1:8080</code> e o Nginx publica o acesso na rede.</p><p class="health-endpoint"><code>GET /health</code><span>Endereço usado pelo monitoramento.</span></p></section>
+        <div class="page-title"><div><h1>Desenvolvedor</h1><p class="muted">Atualizações do SISGLOSA, estado do serviço e dados de implantação.</p></div><p class="summary-chips"><span id="health-chip" class="chip"><span class="status-dot" aria-hidden="true"></span><span id="health-status">Verificando…</span></span></p></div>
+        <div class="metrics dev-metrics">
+          <article><span>Versão ativa</span><strong id="update-version">—</strong><small id="ops-last-message" class="muted">—</small></article>
+          <article><span>Última atualização</span><strong id="ops-last-kind">—</strong><small id="ops-last-date" class="muted">—</small></article>
+          <article><span>Pacotes aplicados</span><strong id="ops-updates">—</strong><small class="muted">com cópia de segurança</small></article>
+          <article><span>Tempo ativo</span><strong id="ops-uptime">—</strong><small id="health-detail" class="muted">Aguardando consulta.</small></article>
         </div>
+        <section class="panel update-panel">
+          <div class="section-heading"><div><h2>Aplicar pacote de atualização</h2><p>Informe a próxima versão, o tipo e o que mudou. O pacote .zip pode conter apenas os arquivos autorizados do sistema.</p></div></div>
+          <form id="update-form" class="update-form">
+            <label class="file-pick update-upload"><input id="update-file" name="package" type="file" accept=".zip,application/zip" required><span class="file-pick-button"><i class="bi bi-file-earmark-zip" aria-hidden="true"></i>Escolher pacote</span><span id="update-file-name" class="file-pick-name">Nenhum arquivo selecionado</span></label>
+            <div class="update-fields">
+              <label>Próxima versão<input id="update-next-version" name="version" required pattern="\d+\.\d+\.\d+" inputmode="decimal" autocomplete="off" placeholder="x.y.z"><small id="update-version-hint" class="field-hint">Sugerida a partir da versão ativa.</small></label>
+              <fieldset class="kind-switch"><legend>Tipo de atualização</legend>
+                <label class="kind-option"><input type="radio" name="type" value="corretiva" checked><span><strong>Corretiva</strong><small>Corrige falhas. Avança o último número (x.y.<b>Z</b>).</small></span></label>
+                <label class="kind-option"><input type="radio" name="type" value="evolutiva"><span><strong>Evolutiva</strong><small>Nova função ou melhoria. Avança o número do meio (x.<b>Y</b>.0).</small></span></label>
+              </fieldset>
+            </div>
+            <label>Descrição do que mudou<textarea id="update-message" name="message" required maxlength="500" placeholder="Ex.: Corrige o cálculo do valor auditado na impressão do relatório."></textarea><small class="field-hint"><span id="update-message-count">0</span>/500 caracteres. Aparece no histórico de atualizações.</small></label>
+            <div class="update-actions"><p id="update-status" class="update-note" aria-live="polite">Antes de aplicar, o sistema valida o pacote e guarda uma cópia dos arquivos substituídos e do banco de dados.</p><button class="with-label" type="submit"><i class="bi bi-cloud-arrow-up" aria-hidden="true"></i>Aplicar atualização</button></div>
+          </form>
+        </section>
+        <section class="panel"><div class="section-heading"><div><h2>Histórico de atualizações</h2><p>Últimos 20 pacotes aplicados.</p></div></div><div class="table-wrap"><table class="history-table"><thead><tr><th>Versão</th><th>Tipo</th><th>O que mudou</th><th>Aplicado por</th><th>Arquivos</th><th>Data</th></tr></thead><tbody id="update-history"><tr><td colspan="6" class="empty-cell">Nenhuma atualização aplicada.</td></tr></tbody></table></div></section>
+        <section class="panel"><div class="section-heading"><div><h2>Ambiente e implantação</h2><p>Proxmox com Nginx e systemd. Roteiro em <code>deploy/proxmox/README.md</code>.</p></div></div>
+          <dl class="facts facts-grid"><div><dt>Banco de dados</dt><dd id="ops-database">—</dd></div><div><dt>Node.js</dt><dd id="ops-node">—</dd></div><div><dt>Endereço do serviço</dt><dd><code>127.0.0.1:8080</code> <span class="muted">publicado pelo Nginx</span></dd></div><div><dt>Monitoramento</dt><dd><code>GET /health</code></dd></div></dl></section>
       </section>
     </main>
+    <footer class="app-footer">Desenvolvido por Cb Chimelo - 2026</footer>
   </div>
   <div id="confirm-modal" class="modal-backdrop" hidden>
     <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-title" aria-describedby="modal-message">
@@ -145,6 +171,17 @@
         <label>Justificativa<textarea id="manual-justification-text" required rows="7" placeholder="Descreva a justificativa"></textarea></label>
         <div class="modal-actions"><button id="manual-justification-modal-cancel" type="button" class="secondary">Cancelar</button><button type="submit">Aplicar justificativa</button></div>
       </form>
+    </section>
+  </div>
+  <div id="summary-modal" class="modal-backdrop" hidden>
+    <section class="modal-card summary-modal-card" role="dialog" aria-modal="true" aria-labelledby="summary-title">
+      <button id="summary-close" class="modal-close text-button" type="button" aria-label="Fechar"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+      <h2 id="summary-title">Resumo da guia</h2>
+      <p id="summary-identity" class="muted"></p>
+      <div class="dashboard-values summary-values"><article><span>Valor apresentado</span><strong id="summary-billed"></strong></article><article class="glosa"><span>Total glosado</span><strong id="summary-glosa"></strong><small id="summary-glosa-rate"></small></article><article class="ajuste"><span>Total ajustado</span><strong id="summary-ajuste"></strong></article><article class="audited"><span>Valor auditado</span><strong id="summary-audited"></strong></article></div>
+      <h3 class="summary-subtitle">Valores por módulo</h3>
+      <ol id="summary-modules" class="module-ranking"></ol>
+      <div class="modal-actions"><button id="summary-pdf" class="secondary with-label" type="button" hidden><i class="bi bi-printer" aria-hidden="true"></i>Imprimir / PDF</button><a id="summary-open" class="button-link with-label" href="/guias"><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>Abrir guia</a></div>
     </section>
   </div>
   <div id="preview-modal" class="modal-backdrop" hidden>

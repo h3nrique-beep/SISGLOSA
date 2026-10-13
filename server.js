@@ -19,7 +19,7 @@ const DEFAULT_ADJUSTMENT_JUSTIFICATION = 'Ajuste, será pago R$ conforme as regr
 const sessions = new Map();
 const loginAttempts = new Map();
 const SESSION_TTL_MS = Number(process.env.SESSION_TTL_HOURS || 8) * 60 * 60 * 1000;
-const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const LOGIN_WINDOW_MS = 5 * 60 * 1000;
 const MAX_LOGIN_ATTEMPTS = 5;
 const MAX_BODY_SIZE = 1_000_000;
 const MAX_UPDATE_SIZE = 25 * 1024 * 1024;
@@ -156,24 +156,28 @@ async function systemInfo() {
   return { version, updates: (await one('SELECT COUNT(*) AS total FROM update_packages')).total, database: mysql ? 'MySQL/MariaDB' : 'SQLite', node: process.version, uptime: Math.round(process.uptime()) };
 }
 async function updateHistory() { return all('SELECT version, filename, applied_by, files, message, kind, backup, created_at FROM update_packages ORDER BY id DESC LIMIT 20'); }
-async function applyUpdatePackage(buffer, filename, username) {
+async function applyUpdatePackage(buffer, filename, username, meta = {}) {
   if (!buffer.length) throw updateError('Selecione um pacote ZIP.');
   let archive;
   try { archive = new AdmZip(buffer); } catch { throw updateError('O arquivo enviado não é um ZIP válido.'); }
   const entries = archive.getEntries().filter((entry) => !entry.isDirectory);
   if (!entries.length || entries.length > UPDATE_FILES.size + 1) throw updateError('O pacote possui uma estrutura inválida.');
   const names = entries.map((entry) => entry.entryName.replaceAll('\\', '/'));
-  if (new Set(names).size !== names.length || names.some((name) => name !== 'sisglosa-update.json' && !UPDATE_FILES.has(name))) throw updateError('O pacote contém arquivos não permitidos.');
+  if (new Set(names).size !== names.length || names.some((name) => name !== pacote.MANIFEST_NAME && !UPDATE_FILES.has(name))) throw updateError('O pacote contém arquivos não permitidos.');
   if (entries.reduce((total, entry) => total + Number(entry.header.size || 0), 0) > MAX_UPDATE_SIZE) throw updateError('O conteúdo descompactado excede o limite permitido.');
-  const manifestEntry = entries.find((entry) => entry.entryName.replaceAll('\\', '/') === 'sisglosa-update.json');
-  if (!manifestEntry) throw updateError('Inclua o arquivo sisglosa-update.json no pacote.');
-  let manifest;
-  try { manifest = JSON.parse(manifestEntry.getData().toString('utf8')); } catch { throw updateError('O manifesto do pacote é inválido.'); }
-  const files = Array.isArray(manifest.files) ? manifest.files : [];
-  if (manifest.product !== 'SISGLOSA' || !pacote.VERSION_PATTERN.test(String(manifest.version || '')) || !files.length || new Set(files).size !== files.length || files.some((file) => !UPDATE_FILES.has(file)) || files.length !== names.filter((name) => name !== pacote.MANIFEST_NAME).length || files.some((file) => !names.includes(file))) throw updateError('O manifesto não corresponde aos arquivos permitidos do SISGLOSA.');
-  const message = String(manifest.message || '').trim(), type = String(manifest.type || 'corretiva');
-  if (!message || message.length > pacote.MAX_MESSAGE) throw updateError(`Informe a mensagem do pacote (campo "message" do manifesto), com até ${pacote.MAX_MESSAGE} caracteres.`);
+  const manifestEntry = entries[names.indexOf(pacote.MANIFEST_NAME)];
+  // Manifesto é opcional: o painel informa versão, tipo e descrição; o do gerador vale só como padrão.
+  let manifest = {};
+  if (manifestEntry) { try { manifest = JSON.parse(manifestEntry.getData().toString('utf8')); } catch { throw updateError('O manifesto do pacote é inválido.'); } }
+  const packed = names.filter((name) => name !== pacote.MANIFEST_NAME);
+  const files = manifestEntry ? (Array.isArray(manifest.files) ? manifest.files : []) : packed;
+  if ((manifestEntry && manifest.product !== 'SISGLOSA') || !files.length || new Set(files).size !== files.length || files.some((file) => !UPDATE_FILES.has(file)) || files.length !== packed.length || files.some((file) => !names.includes(file))) throw updateError('O pacote não corresponde aos arquivos permitidos do SISGLOSA.');
+  const version = String(meta.version || manifest.version || '').trim(), message = String(meta.message || manifest.message || '').trim(), type = String(meta.type || manifest.type || 'corretiva');
+  if (!message || message.length > pacote.MAX_MESSAGE) throw updateError(`Descreva o que mudou nesta atualização, com até ${pacote.MAX_MESSAGE} caracteres.`);
   if (!pacote.KINDS.includes(type)) throw updateError(`Tipo de atualização inválido. Use: ${pacote.KINDS.join(', ')}.`);
+  if (!pacote.VERSION_PATTERN.test(version)) throw updateError('Informe a próxima versão no formato x.y.z (ex.: 2.0.1).');
+  const current = (await systemInfo()).version;
+  if (pacote.compareVersions(version, current) <= 0) throw updateError(`A versão ${version} precisa ser maior que a versão ativa ${current}.`);
   const contents = new Map(files.map((file) => [file, entries.find((candidate) => candidate.entryName.replaceAll('\\', '/') === file).getData()]));
   for (const [file, content] of contents) { const problem = pacote.syntaxError(file, content); if (problem) throw updateError(`O arquivo ${file} tem erro de sintaxe (${problem}); o pacote não foi aplicado.`); }
   const backupRoot = path.join(UPDATE_BACKUP_ROOT, `${Date.now()}-${crypto.randomUUID()}`);
@@ -187,15 +191,15 @@ async function applyUpdatePackage(buffer, filename, username) {
     if (!mysql) db.exec(`VACUUM INTO '${path.join(backupRoot, 'guias.db').replaceAll("'", "''")}'`);
     for (const [file, content] of contents) fs.writeFileSync(path.join(ROOT, file), content);
     await transaction(async (connection) => {
-      await run('INSERT INTO update_packages (version, filename, applied_by, files, message, kind, backup) VALUES (?, ?, ?, ?, ?, ?, ?)', [manifest.version, filename, username, JSON.stringify(files), message, type, backupRoot], connection);
-      await run('UPDATE system_settings SET setting_value=? WHERE setting_key=?', [manifest.version, 'app_version'], connection);
+      await run('INSERT INTO update_packages (version, filename, applied_by, files, message, kind, backup) VALUES (?, ?, ?, ?, ?, ?, ?)', [version, filename, username, JSON.stringify(files), message, type, backupRoot], connection);
+      await run('UPDATE system_settings SET setting_value=? WHERE setting_key=?', [version, 'app_version'], connection);
     });
   } catch (error) {
     for (const file of backedUp) fs.copyFileSync(path.join(backupRoot, file), path.join(ROOT, file));
     throw error;
   }
   pruneUpdateBackups();
-  return { version: manifest.version, type, message, files, backup: backupRoot, restartRequired: files.some((file) => pacote.RESTART_FILES.includes(file)) };
+  return { version, type, message, files, backup: backupRoot, restartRequired: files.some((file) => pacote.RESTART_FILES.includes(file)) };
 }
 async function guide(id) {
   const data = await one('SELECT number, ocs, patient, billed, attendance_number, status, finalized_at FROM guides WHERE number=?', [id]);
@@ -205,7 +209,8 @@ async function guide(id) {
   return { ...data, ...guideAccess(data) };
 }
 async function listGuides(status) { const valid = ['RASCUNHO', 'FINALIZADA'].includes(status); return (await all(`SELECT number, ocs, patient, billed, status, finalized_at, created_at FROM guides${valid ? ' WHERE status=?' : ''} ORDER BY number DESC LIMIT 100`, valid ? [status] : [])).map((item) => ({ ...item, billed: Number(item.billed), ...guideAccess(item) })); }
-async function dashboard() { const counts = await one("SELECT COUNT(*) AS total, SUM(CASE WHEN status='RASCUNHO' THEN 1 ELSE 0 END) AS open, SUM(CASE WHEN status='FINALIZADA' THEN 1 ELSE 0 END) AS finalized FROM guides"); return { total: Number(counts.total || 0), open: Number(counts.open || 0), finalized: Number(counts.finalized || 0), recent: (await listGuides()).slice(0, 5) }; }
+async function dashboard() { const counts = await one("SELECT COUNT(*) AS total, SUM(CASE WHEN status='RASCUNHO' THEN 1 ELSE 0 END) AS open, SUM(CASE WHEN status='FINALIZADA' THEN 1 ELSE 0 END) AS finalized FROM guides"); return { total: Number(counts.total || 0), open: Number(counts.open || 0), finalized: Number(counts.finalized || 0), billed: Number((await one("SELECT COALESCE(SUM(billed), 0) AS total FROM guides WHERE status='RASCUNHO'")).total), ...totalsByKind(await all("SELECT i.module, COALESCE(SUM(i.amount), 0) AS total FROM guide_items i JOIN guides g ON g.number = i.guide_number WHERE g.status='RASCUNHO' GROUP BY i.module")), recent: (await listGuides()).slice(0, 5) }; }
+function totalsByKind(modules) { const sum = (prefix) => modules.filter((row) => row.module.startsWith(prefix)).reduce((total, row) => total + Number(row.total), 0); return { glosa: sum('Glosa'), ajuste: sum('Ajuste') }; }
 function totals(items, billed) {
   const glosa = items.filter((item) => item.module.startsWith('Glosa')).reduce((sum, item) => sum + Number(item.amount), 0);
   const ajuste = items.filter((item) => item.module.startsWith('Ajuste')).reduce((sum, item) => sum + Number(item.amount), 0);
@@ -306,7 +311,7 @@ const server = http.createServer(async (request, response) => {
     if (pathname === '/sisglosa.jpg') return serve(response, path.join(ROOT, 'public', 'sisglosa.jpg'), 'image/jpeg');
     if (['/', '/login', '/guias', '/registros', '/administracao', '/desenvolvedor', '/index.html'].includes(pathname)) return serve(response, path.join(ROOT, 'public', 'index.html'), 'text/html; charset=utf-8');
     if (pathname === '/health') { await one('SELECT 1'); return json(response, 200, { status: 'ok' }); }
-    if (pathname === '/api/login' && request.method === 'POST') { const data = await body(request); const username = String(data.username || '').trim(); const key = loginKey(request, username); if (!loginAllowed(key)) return fail(response, 429, 'Muitas tentativas. Aguarde 15 minutos para tentar novamente.'); const saved = await one('SELECT username, password_hash, role, must_change_password FROM users WHERE username=?', [username]); if (!saved || !passwordMatches(String(data.password || ''), saved.password_hash)) { registerFailedLogin(key); return fail(response, 401, 'Usuário ou senha inválidos.'); } loginAttempts.delete(key); pruneSessions(); const id = crypto.randomUUID(); const session = { username: saved.username, role: saved.role, mustChangePassword: saved.must_change_password, expires: Date.now() + SESSION_TTL_MS }; sessions.set(id, session); return json(response, 200, sessionData(session), { 'Set-Cookie': sessionCookie(id) }); }
+    if (pathname === '/api/login' && request.method === 'POST') { const data = await body(request); const username = String(data.username || '').trim(); const key = loginKey(request, username); if (!loginAllowed(key)) return fail(response, 429, 'Muitas tentativas. Aguarde 5 minutos para tentar novamente.'); const saved = await one('SELECT username, password_hash, role, must_change_password FROM users WHERE username=?', [username]); if (!saved || !passwordMatches(String(data.password || ''), saved.password_hash)) { registerFailedLogin(key); return fail(response, 401, 'Usuário ou senha inválidos.'); } loginAttempts.delete(key); pruneSessions(); const id = crypto.randomUUID(); const session = { username: saved.username, role: saved.role, mustChangePassword: saved.must_change_password, expires: Date.now() + SESSION_TTL_MS }; sessions.set(id, session); return json(response, 200, sessionData(session), { 'Set-Cookie': sessionCookie(id) }); }
     if (pathname === '/api/logout' && request.method === 'POST') { sessions.delete(cookie(request, 'PMGU_SESSION')); return json(response, 200, {}, { 'Set-Cookie': sessionCookie('', 0) }); }
     const session = authenticated(request); if (!session) return fail(response, 401, 'Sessão expirada.');
     if (pathname === '/api/session') return json(response, 200, sessionData(session));
@@ -318,7 +323,7 @@ const server = http.createServer(async (request, response) => {
     const removeUser = pathname.match(/^\/api\/users\/(\d+)$/); if (removeUser && request.method === 'DELETE') { if (session.role !== 'admin') return fail(response, 403, 'Acesso exclusivo do administrador.'); const user = await one('SELECT username, role FROM users WHERE id=?', [Number(removeUser[1])]); if (!user) return fail(response, 404, 'Usuário não encontrado.'); if (user.role === 'admin') return fail(response, 400, 'O administrador não pode ser removido.'); await run('DELETE FROM users WHERE id=?', [Number(removeUser[1])]); clearUserSessions(user.username); return json(response, 200, {}); }
     if (pathname === '/api/admin/system' && request.method === 'GET') { if (session.role !== 'admin') return fail(response, 403, 'Acesso exclusivo do administrador.'); return json(response, 200, await systemInfo()); }
     if (pathname === '/api/admin/updates' && request.method === 'GET') { if (session.role !== 'admin') return fail(response, 403, 'Acesso exclusivo do administrador.'); return json(response, 200, await updateHistory()); }
-    if (pathname === '/api/admin/updates' && request.method === 'POST') { if (session.role !== 'admin') return fail(response, 403, 'Acesso exclusivo do administrador.'); if (!/^application\/(zip|octet-stream)(?:;|$)/.test(request.headers['content-type'] || '')) return fail(response, 415, 'Envie um arquivo ZIP.'); const filename = decodeURIComponent(String(request.headers['x-update-filename'] || 'atualizacao.zip')).replace(/[^A-Za-z0-9._-]/g, '_'); if (!filename.toLowerCase().endsWith('.zip')) return fail(response, 400, 'O pacote precisa ter extensão .zip.'); return json(response, 201, await applyUpdatePackage(await rawBody(request, MAX_UPDATE_SIZE), filename, session.username)); }
+    if (pathname === '/api/admin/updates' && request.method === 'POST') { if (session.role !== 'admin') return fail(response, 403, 'Acesso exclusivo do administrador.'); if (!/^application\/(zip|octet-stream)(?:;|$)/.test(request.headers['content-type'] || '')) return fail(response, 415, 'Envie um arquivo ZIP.'); const filename = decodeURIComponent(String(request.headers['x-update-filename'] || 'atualizacao.zip')).replace(/[^A-Za-z0-9._-]/g, '_'); if (!filename.toLowerCase().endsWith('.zip')) return fail(response, 400, 'O pacote precisa ter extensão .zip.'); const header = (name) => { try { return decodeURIComponent(String(request.headers[name] || '')); } catch { return ''; } }; return json(response, 201, await applyUpdatePackage(await rawBody(request, MAX_UPDATE_SIZE), filename, session.username, { version: header('x-update-version'), type: header('x-update-type'), message: header('x-update-message') })); }
     if (session.role === 'admin') return fail(response, 403, 'Administradores não acessam as guias.');
     if (pathname === '/api/dashboard' && request.method === 'GET') return json(response, 200, await dashboard());
     if (pathname === '/api/guides' && request.method === 'GET') return json(response, 200, await listGuides(url.searchParams.get('status')));

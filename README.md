@@ -83,13 +83,13 @@ O servidor usa a porta `8080` e aceita conexões apenas em `127.0.0.1`. Para alt
 
 ## Atualizações pelo administrador
 
-O pacote é gerado com um comando e aplicado pela tela **Administração**:
+O pacote é gerado com um comando e aplicado pela tela **Desenvolvedor**:
 
 ```powershell
 npm run pacote -- --versao 2.0.1 --mensagem "Descrição da mudança" --tipo corretiva
 ```
 
-O comando cria `output/pacotes/sisglosa-2.0.1.zip` com o manifesto `sisglosa-update.json` (versão, tipo, mensagem e arquivos). Opções: `--tipo corretiva|evolutiva|seguranca`, `--arquivos a,b` (só esses), `--desde <commit-ou-tag>` (só o que mudou), `--saida <pasta>` e `--forcar`.
+O comando cria `output/pacotes/sisglosa-2.0.1.zip` com o manifesto `sisglosa-update.json` (versão, tipo, mensagem e arquivos). Opções: `--tipo corretiva|evolutiva`, `--arquivos a,b` (só esses), `--desde <commit-ou-tag>` (só o que mudou), `--saida <pasta>` e `--forcar`.
 
 São aceitos `server.js`, `lib/passwords.js`, `lib/pacote.js`, `public/index.html`, `public/app.js` e `public/styles.css`. Ao enviar o `.zip`, o administrador vê o resultado e o sistema valida o manifesto, bloqueia arquivos fora dessa lista, recusa JavaScript com erro de sintaxe e guarda uma cópia dos arquivos substituídos e do banco SQLite em `data/updates/backups`. O histórico mostra versão, tipo, mensagem e arquivos. Atualizações que incluam `server.js`, `lib/passwords.js` ou `lib/pacote.js` exigem reinício do serviço.
 

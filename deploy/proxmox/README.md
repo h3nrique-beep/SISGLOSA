@@ -93,9 +93,9 @@ O pacote é sempre gerado neste projeto, na máquina de desenvolvimento (a pasta
 npm run pacote -- --versao 2.0.1 --mensagem "Corrige a impressão do relatório" --tipo corretiva
 ```
 
-O comando grava `output/pacotes/sisglosa-2.0.1.zip` e mostra os arquivos, o tamanho e o SHA-256. Opções: `--tipo corretiva|evolutiva|seguranca` (padrão `corretiva`), `--arquivos public/app.js,public/styles.css` (só esses), `--desde <commit-ou-tag>` (só o que mudou desde essa referência), `--saida <pasta>` e `--forcar` (sobrescreve um pacote existente). Sem `--arquivos` nem `--desde`, o pacote leva todos os arquivos permitidos.
+O comando grava `output/pacotes/sisglosa-2.0.1.zip` e mostra os arquivos, o tamanho e o SHA-256. Opções: `--tipo corretiva|evolutiva` (padrão `corretiva`), `--arquivos public/app.js,public/styles.css` (só esses), `--desde <commit-ou-tag>` (só o que mudou desde essa referência), `--saida <pasta>` e `--forcar` (sobrescreve um pacote existente). Sem `--arquivos` nem `--desde`, o pacote leva todos os arquivos permitidos.
 
-Em **Administração › Atualizações do SISGLOSA**, o administrador envia o `.zip` (até 25 MB). O pacote traz o manifesto `sisglosa-update.json`, gerado pelo comando, e somente os arquivos listados nele:
+Em **Desenvolvedor › Aplicar pacote de atualização**, o administrador envia o `.zip` (até 25 MB) e informa a próxima versão, o tipo (corretiva ou evolutiva) e a descrição do que mudou. O pacote traz o manifesto `sisglosa-update.json`, gerado pelo comando, e somente os arquivos listados nele:
 
 ```json
 {

@@ -1,5 +1,5 @@
-// Gera o pacote .zip de atualização que o painel (Administração › Atualizações) aplica.
-// Uso: npm run pacote -- --versao 2.0.1 --mensagem "O que mudou" [--tipo corretiva|evolutiva|seguranca]
+// Gera o pacote .zip de atualização que o painel (Desenvolvedor › Atualizações) aplica.
+// Uso: npm run pacote -- --versao 2.0.1 --mensagem "O que mudou" [--tipo corretiva|evolutiva]
 //        [--arquivos public/app.js,public/styles.css] [--desde <ref-git>] [--saida <pasta>] [--forcar]
 const AdmZip = require('adm-zip');
 const crypto = require('node:crypto');
