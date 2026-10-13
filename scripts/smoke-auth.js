@@ -73,6 +73,9 @@ async function wait() {
     response = await request('/api/users'); assert.equal((await response.json()).length, 3);
     response = await request('/api/users/2', { method: 'DELETE' }); assert.equal(response.status, 200);
     response = await request('/api/users'); assert.equal((await response.json()).length, 2);
+    const setAdmin = spawnSync(process.execPath, [path.join(__dirname, 'definir-admin.js'), '--remover-outros'], { encoding: 'utf8', env: { ...process.env, DB_FILE: path.join(folder, 'guias.db'), ADMIN_PASSWORD: 'senha-simples1' } }); assert.equal(setAdmin.status, 0, setAdmin.stderr); assert.match(setAdmin.stderr, /política/); assert.ok(!setAdmin.stdout.includes('senha-simples1'));
+    cookie = ''; response = await request('/api/login', { method: 'POST', body: JSON.stringify({ username: 'admin', password: 'senha-simples1' }) }); assert.equal(response.status, 200); assert.equal((await response.json()).mustChangePassword, false);
+    response = await request('/api/users'); assert.equal((await response.json()).length, 1);
     console.log('Auth smoke test OK');
   } finally {
     server.kill();

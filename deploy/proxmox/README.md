@@ -12,6 +12,7 @@ apt install -y ca-certificates curl gnupg nginx git sqlite3 qemu-guest-agent
 curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
 apt install -y nodejs
 node --version
+timedatectl set-timezone America/Sao_Paulo
 ```
 
 ## 2. Aplicação
@@ -66,7 +67,18 @@ systemctl status sisglosa
 
 ## 4. Primeiro acesso e usuários
 
-Acesse `http://IP_DA_MÁQUINA/` e entre com `admin` / `Admin@123456`. O sistema exige a troca imediata da senha (mínimo de 8 caracteres, com maiúscula, minúscula, número e símbolo). **Faça isso antes de liberar o acesso na rede.**
+Num banco novo, o acesso inicial é `admin` / `Admin@123456`, e o sistema exige a troca imediata da senha (mínimo de 8 caracteres, com maiúscula, minúscula, número e símbolo). **Faça isso antes de liberar o acesso na rede.**
+
+Para definir a senha do administrador diretamente (por exemplo, uma senha própria da instituição) e deixar o painel só com essa conta, use o script abaixo. Ele também serve para recuperar uma senha esquecida, e a senha não é gravada em arquivo. Rode depois do primeiro início, que cria o banco:
+
+```bash
+cd /opt/sisglosa
+read -rs -p 'Senha do administrador: ' ADMIN_PASSWORD; echo; export ADMIN_PASSWORD
+runuser -u sisglosa -- node scripts/definir-admin.js --remover-outros
+unset ADMIN_PASSWORD
+```
+
+Sem `--remover-outros`, as demais contas são mantidas. O script não impõe a política de senha do painel (apenas avisa), então prefira uma senha longa. Se for **levar o banco da máquina atual**, ele já traz esse `admin`, e este passo não é necessário.
 
 O sistema foi pensado para dois usuários:
 
@@ -75,7 +87,7 @@ O sistema foi pensado para dois usuários:
 
 ## 5. Atualizações pelo painel (pacote .zip)
 
-O pacote é gerado na máquina de desenvolvimento (a que tem o código do projeto), no mesmo modelo do Sentinela: um comando monta o `.zip` e o painel o valida e aplica.
+O pacote é sempre gerado neste projeto, na máquina de desenvolvimento (a pasta do código, nunca na VM), no mesmo modelo do Sentinela: um comando monta o `.zip` e o painel o valida e aplica.
 
 ```bash
 npm run pacote -- --versao 2.0.1 --mensagem "Corrige a impressão do relatório" --tipo corretiva
