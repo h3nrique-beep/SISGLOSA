@@ -153,7 +153,7 @@ function pruneUpdateBackups(keep = 10) {
 }
 async function systemInfo() {
   const version = (await one('SELECT setting_value FROM system_settings WHERE setting_key=?', ['app_version']))?.setting_value || APP_VERSION;
-  return { version, updates: (await one('SELECT COUNT(*) AS total FROM update_packages')).total };
+  return { version, updates: (await one('SELECT COUNT(*) AS total FROM update_packages')).total, database: mysql ? 'MySQL/MariaDB' : 'SQLite', node: process.version, uptime: Math.round(process.uptime()) };
 }
 async function updateHistory() { return all('SELECT version, filename, applied_by, files, message, kind, backup, created_at FROM update_packages ORDER BY id DESC LIMIT 20'); }
 async function applyUpdatePackage(buffer, filename, username) {
