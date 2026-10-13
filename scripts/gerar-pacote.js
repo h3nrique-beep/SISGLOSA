@@ -61,4 +61,4 @@ fs.writeFileSync(output, buffer);
 console.log(`Pacote ${version} (${type}) gerado: ${output}`);
 console.log(`Arquivos: ${files.join(', ')}`);
 console.log(`Tamanho: ${(buffer.length / 1024).toFixed(1)} KB · sha256 ${crypto.createHash('sha256').update(buffer).digest('hex')}`);
-console.log(files.some((file) => pacote.RESTART_FILES.includes(file)) ? 'Após aplicar, reinicie o serviço: systemctl restart sisglosa' : 'Após aplicar, basta recarregar a página.');
+console.log(files.some((file) => pacote.RESTART_FILES.includes(file)) ? 'Após aplicar, o serviço reinicia sozinho (no Proxmox, via systemd).' : 'Após aplicar, basta recarregar a página.');

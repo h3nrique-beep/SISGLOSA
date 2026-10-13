@@ -11,7 +11,8 @@ WorkingDirectory=/opt/sisglosa
 EnvironmentFile=/etc/sisglosa/sisglosa.env
 Environment=NODE_ENV=production
 ExecStart=/usr/bin/node server.js
-Restart=on-failure
+# always: o painel encerra o processo após um pacote que muda o servidor, e o systemd o sobe de novo.
+Restart=always
 RestartSec=5
 UMask=0077
 NoNewPrivileges=true

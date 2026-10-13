@@ -2,6 +2,8 @@ let modules = ['Ajuste de honorários', 'Ajuste de exame laboratorial', 'Ajuste 
 const $ = (selector, root = document) => root.querySelector(selector);
 const money = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 const DEFAULT_ADJUSTMENT_JUSTIFICATION = 'Ajuste, será pago R$ conforme as regras da CBHPM Edição 2014 e de acordo com o item 5 do referencial de custos do contrato.';
+const BASE_MODULES = [...modules];
+let savedModules = [];
 let activeModule = modules[0];
 let showAll = false;
 let draftTimer;
@@ -25,7 +27,8 @@ function isAdjustment(module) { return module.startsWith('Ajuste'); }
 function amount(value) { return Number(String(value ?? '').replace(/[^0-9,-]/g, '').replace(/\./g, '').replace(',', '.')) || 0; }
 function format(value) { return money.format(Number(value || 0)); }
 function cents(value) { return (Number(String(value ?? '').replace(/\D/g, '')) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
-function bindSuggestions(input, values) { const menu = $('#custom-suggestions'); const show = () => { const matches = values().filter((value) => value.toLocaleLowerCase('pt-BR').includes(input.value.trim().toLocaleLowerCase('pt-BR'))).slice(0, 8); menu.replaceChildren(...matches.map((value) => { const option = Object.assign(document.createElement('button'), { type: 'button', textContent: value }); option.onclick = () => { input.value = value; menu.hidden = true; input.dispatchEvent(new Event('input', { bubbles: true })); }; return option; })); if (!matches.length) return menu.hidden = true; const box = input.getBoundingClientRect(); Object.assign(menu.style, { left: `${box.left + scrollX}px`, top: `${box.bottom + scrollY + 5}px`, width: `${box.width}px` }); menu.hidden = false; }; input.addEventListener('focus', show); input.addEventListener('input', show); input.addEventListener('blur', () => setTimeout(() => { menu.hidden = true; }, 150)); }
+// Mostra todas as sugestões que combinam (a lista rola); o x remove a sugestão no servidor, sem mexer nas guias.
+function bindSuggestions(input, values, kind) { const menu = $('#custom-suggestions'); const show = () => { const matches = values().filter((value) => value.toLocaleLowerCase('pt-BR').includes(input.value.trim().toLocaleLowerCase('pt-BR'))); menu.replaceChildren(...matches.map((value) => { const row = document.createElement('div'); row.className = 'suggestion-row'; const option = Object.assign(document.createElement('button'), { type: 'button', className: 'suggestion-pick', textContent: value }); option.onmousedown = (event) => event.preventDefault(); option.onclick = () => { input.value = value; menu.hidden = true; input.dispatchEvent(new Event('input', { bubbles: true })); }; row.append(option); if (kind) { const remove = Object.assign(document.createElement('button'), { type: 'button', className: 'suggestion-remove', title: 'Remover sugestão', innerHTML: '<i class="bi bi-x-lg" aria-hidden="true"></i>' }); remove.setAttribute('aria-label', `Remover sugestão ${value}`); remove.onmousedown = (event) => event.preventDefault(); remove.onclick = async () => { try { await api(`/api/options/${kind}`, { method: 'DELETE', body: JSON.stringify({ value }) }); const list = values(); list.splice(list.indexOf(value), 1); show(); } catch (error) { toast(error.message, 'error'); } }; row.append(remove); } return row; })); if (!matches.length) return menu.hidden = true; const box = input.getBoundingClientRect(); Object.assign(menu.style, { left: `${box.left + scrollX}px`, top: `${box.bottom + scrollY + 5}px`, width: `${box.width}px` }); menu.hidden = false; }; input.addEventListener('focus', show); input.addEventListener('input', show); input.addEventListener('blur', () => setTimeout(() => { menu.hidden = true; }, 150)); }
 function bindMoneyInput(input) { input.addEventListener('focus', (event) => event.target.select()); input.addEventListener('input', (event) => { event.target.value = cents(event.target.value); totals(); persistDraft(); }); }
 function dateTime(value) { if (!value) return '—'; const text = String(value); return new Date(text.endsWith('Z') ? text : `${text}Z`).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }); }
 function escape(value) { return String(value ?? '').replace(/[&<>"']/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]); }
@@ -75,7 +78,7 @@ function addItem(module = activeModule, item = {}) {
   if (!modules.includes(item.module || module)) modules.push(item.module || module);
   const row = $('#item-template').content.firstElementChild.cloneNode(true);
   $('.module', row).innerHTML = moduleOptions(item.module || module);
-  bindSuggestions($('.specification', row), () => specificationOptions);
+  bindSuggestions($('.specification', row), () => specificationOptions, 'specifications');
   $('.specification', row).value = item.specification || '';
   $('.specialty', row).value = item.specialty || '';
   $('.crm', row).value = item.crm || '';
@@ -84,8 +87,8 @@ function addItem(module = activeModule, item = {}) {
   setJustificationMode(row);
   $('.suggestion-toggle', row).onclick = () => openJustificationModal($('.justification', row));
   $('.manual-justification-toggle', row).onclick = () => openManualJustificationModal($('.justification', row));
-  $('.module', row).addEventListener('change', () => { $('.specification', row).value = ''; $('.specialty', row).value = ''; $('.crm', row).value = ''; $('.justification', row).value = ''; $('.amount', row).value = '0,00'; activeModule = $('.module', row).value; $('#add-module').value = activeModule; setJustificationMode(row); showAll = false; renderFlow(); loadSpecifications(activeModule); totals(); persistDraft(); });
-  $('.remove', row).addEventListener('click', () => { row.remove(); totals(); renderFlow(); persistDraft(); });
+  $('.module', row).addEventListener('change', () => { $('.specification', row).value = ''; $('.specialty', row).value = ''; $('.crm', row).value = ''; $('.justification', row).value = ''; $('.amount', row).value = '0,00'; activeModule = $('.module', row).value; pruneCustomModules(); $('#add-module').value = activeModule; setJustificationMode(row); showAll = false; renderFlow(); loadSpecifications(activeModule); totals(); persistDraft(); });
+  $('.remove', row).addEventListener('click', () => { row.remove(); pruneCustomModules(); totals(); renderFlow(); persistDraft(); });
   row.addEventListener('input', () => { totals(); persistDraft(); });
   bindMoneyInput($('.amount', row));
   $('#items').append(row); renderFlow(); totals(); return row;
@@ -100,9 +103,16 @@ function renderFlow() {
   renderModuleMap();
 }
 // Mapa dos módulos agrupado em Ajustes e Glosas, com a quantidade de itens lançados em cada um.
+// Módulo criado na guia e sem nenhum item deixa de existir (os já salvos em outras guias continuam na lista).
+function pruneCustomModules() {
+  const used = new Set(rows().map((row) => $('.module', row).value));
+  modules = modules.filter((module) => BASE_MODULES.includes(module) || savedModules.includes(module) || used.has(module));
+  if (!used.has(activeModule) && !BASE_MODULES.includes(activeModule)) activeModule = modules[0];
+  refreshModuleOptions();
+}
 function renderModuleMap() {
   const counts = {}; rows().forEach((row) => { const module = $('.module', row).value; counts[module] = (counts[module] || 0) + 1; });
-  $('#module-map').innerHTML = ['Ajuste', 'Glosa'].map((prefix) => `<div class="module-map-group"><span class="module-map-label">${prefix}s</span>${modules.filter((module) => module.startsWith(prefix)).map((module) => `<button type="button" class="module-chip${module === activeModule ? ' active' : ''}${counts[module] ? ' filled' : ''}" data-module="${escape(module)}" aria-pressed="${module === activeModule}">${escape(module.replace(/^(Ajuste|Glosa)( de)?:?\s*/, '').replace(/^./, (letter) => letter.toUpperCase()))}${counts[module] ? `<span class="module-chip-count">${counts[module]}</span>` : ''}</button>`).join('')}</div>`).join('');
+  $('#module-map').innerHTML = ['Ajuste', 'Glosa'].map((prefix) => `<div class="module-map-group"><span class="module-map-label">${prefix}s</span>${modules.filter((module) => module.startsWith(prefix) && (BASE_MODULES.includes(module) || counts[module])).map((module) => `<button type="button" class="module-chip${module === activeModule ? ' active' : ''}${counts[module] ? ' filled' : ''}" data-module="${escape(module)}" aria-pressed="${module === activeModule}">${escape(module.replace(/^(Ajuste|Glosa)( de)?:?\s*/, '').replace(/^./, (letter) => letter.toUpperCase()))}${counts[module] ? `<span class="module-chip-count">${counts[module]}</span>` : ''}</button>`).join('')}</div>`).join('');
 }
 function activateModule(module) {
   activeModule = module; showAll = false;
@@ -123,7 +133,7 @@ function previewSections(items, prefix, title) {
   return sections ? `<h2>${title}</h2>${sections}` : '';
 }
 function preview(items, billed, glosa, ajuste) {
-  $('#preview').innerHTML = `<article class="document-model"><div class="official"><img class="official-logo" src="/template-logo.png" alt="Exército Brasileiro">MINISTÉRIO DA DEFESA<br>EXÉRCITO BRASILEIRO<br>CMDO 15ª BDA INF MEC</div><p class="identity">OCS: ${escape($('#ocs').value)}<br>PACIENTE: ${escape($('#patient').value)}<br>GUIA Nº: ${escape($('#guide-number').value)}</p><table class="summary"><thead><tr><th>Valor<br>Apresentado</th><th>Glosa</th><th>Ajuste</th><th>Valor<br>Auditado</th><th>Observação</th></tr></thead><tbody><tr><td class="money">${format(billed)}</td><td class="money">${format(glosa)}</td><td class="money">${format(ajuste)}</td><td class="money">${format(billed - glosa + ajuste)}</td><td class="observation">Com relação às glosas e possíveis recursos, favor cumprir rigorosamente os prazos e procedimentos previstos nas cláusulas 7.1.21 até a cláusula 7.1.31 do Termo de Contrato celebrado entre as partes.</td></tr></tbody></table>${previewSections(items, 'Ajuste', 'RELATÓRIO DE AJUSTE')}${previewSections(items, 'Glosa', 'RELATÓRIO DE GLOSA')}<p style="margin-top:26px">Quartel em Cascavel-PR, ${new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}</p><div class="signatures"><div>Médico Auditor da Seção de Auditoria de Contas Médicas</div><div>Enfermeira Auditora da Seção de Auditoria de Contas Médicas</div></div><footer class="report-footer"><span>(Relatório de Glosas do Atendimento ${escape($('#attendance-number').value || '________________')}</span><span class="leader"></span><span class="report-pages">1/1</span><span>)</span></footer></article>`;
+  $('#preview').innerHTML = `<article class="document-model"><div class="official"><img class="official-logo" src="/template-logo.png" alt="Exército Brasileiro">MINISTÉRIO DA DEFESA<br>EXÉRCITO BRASILEIRO<br>CMDO 15ª BDA INF MEC</div><p class="identity">OCS: ${escape($('#ocs').value)}<br>PACIENTE: ${escape($('#patient').value)}<br>GUIA Nº: ${escape($('#guide-number').value)}</p><table class="summary"><thead><tr><th>Valor<br>Apresentado</th><th>Glosa</th><th>Ajuste</th><th>Valor<br>Auditado</th><th>Observação</th></tr></thead><tbody><tr><td class="money">${format(billed)}</td><td class="money">${format(glosa)}</td><td class="money">${format(ajuste)}</td><td class="money">${format(billed - glosa + ajuste)}</td><td class="observation">Com relação às glosas e possíveis recursos, favor cumprir rigorosamente os prazos e procedimentos previstos nas cláusulas 7.1.21 até a cláusula 7.1.31 do Termo de Contrato celebrado entre as partes.</td></tr></tbody></table>${previewSections(items, 'Ajuste', 'RELATÓRIO DE AJUSTE')}${previewSections(items, 'Glosa', 'RELATÓRIO DE GLOSA')}<p style="margin-top:26px">Quartel em Cascavel-PR, ${new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}</p><div class="signatures"><div>Médico Auditor da Seção de Auditoria de Contas Médicas</div><div>Enfermeira Auditora da Seção de Auditoria de Contas Médicas</div></div><footer class="report-footer"><span>(Relatório de Glosas do Atendimento ${escape($('#attendance-number').value || '________________')}</span><span class="leader"></span><span>)</span></footer></article>`;
 }
 function renderPreview() { const items = rows().map(rowValues), billed = amount($('#billed').value), glosa = items.filter((item) => item.module.startsWith('Glosa')).reduce((sum, item) => sum + item.amount, 0), ajuste = items.filter((item) => item.module.startsWith('Ajuste')).reduce((sum, item) => sum + item.amount, 0); preview(items, billed, glosa, ajuste); }
 function renderEditHistory(entries = []) { const target = $('#edit-history'); target.replaceChildren(); if (!entries.length) return target.append(Object.assign(document.createElement('li'), { className: 'muted', textContent: 'Salve a guia para registrar o histórico.' })); entries.forEach((entry) => { const item = document.createElement('li'); const action = document.createElement('strong'); const meta = document.createElement('span'); action.textContent = entry.action; meta.textContent = `${entry.username} · ${dateTime(entry.created_at)}`; item.append(action, meta); const details = Array.isArray(entry.details) ? entry.details : []; if (details.length) { const list = Object.assign(document.createElement('ul'), { className: 'history-details' }); list.replaceChildren(...details.map((detail) => Object.assign(document.createElement('li'), { textContent: detail }))); item.append(list); } target.append(item); }); }
@@ -134,7 +144,7 @@ function restoreDraft() {
 }
 async function loadOcs() { [ocsOptions, patientOptions] = await Promise.all([api('/api/options/ocs'), api('/api/options/patients')]); }
 async function loadSpecifications(module) { specificationOptions = await api(`/api/options/specifications?module=${encodeURIComponent(module)}`); }
-async function loadModules() { modules = await api('/api/options/modules'); refreshModuleOptions(); renderFlow(); }
+async function loadModules() { modules = await api('/api/options/modules'); savedModules = [...modules]; refreshModuleOptions(); renderFlow(); }
 async function loadJustifications() { justificationOptions = await api('/api/options/justifications'); if (!$('#justification-modal').hidden) renderSavedJustifications($('#saved-justification-search').value); }
 function setGuideEditable(editable, editableUntil = null) { currentGuideEditable = editable; $('#guide-form').querySelectorAll('input, select, textarea, button').forEach((field) => { field.disabled = !editable; }); $('#save-guide').disabled = !editable; $('#finalize-guide').disabled = !editable; const notice = $('#guide-lock-notice'); notice.hidden = editable; if (!editable) notice.textContent = `O prazo de edição terminou em ${dateTime(editableUntil)}. Esta guia continua disponível para consulta e impressão.`; }
 function resetGuide(clearDraft = false) { if (clearDraft) sessionStorage.removeItem(draftKey); $('#guide-form').reset(); $('#guide-number').value = ''; $('#items').replaceChildren(); activeModule = modules[0]; currentGuideStatus = 'RASCUNHO'; showAll = false; addItem(); setGuideEditable(true); $('#print-guide').disabled = true; $('#billed').value = '0,00'; totals(); renderEditHistory(); navigate('guide', false); }
@@ -249,8 +259,8 @@ addEventListener('resize', fitPreview);
 $('#preview-modal-close').onclick = () => { $('#preview-modal').hidden = true; $('#preview-guide').focus(); };
 $('#preview-modal').onclick = (event) => { if (event.target === $('#preview-modal')) $('#preview-modal-close').click(); };
 ['ocs', 'patient', 'attendance-number'].forEach((id) => $("#" + id).addEventListener('input', () => { totals(); persistDraft(); })); bindMoneyInput($('#billed'));
-bindSuggestions($('#ocs'), () => ocsOptions);
-bindSuggestions($('#patient'), () => patientOptions);
+bindSuggestions($('#ocs'), () => ocsOptions, 'ocs');
+bindSuggestions($('#patient'), () => patientOptions, 'patients');
 $('#previous-module').onclick = () => activateModule(modules[Math.max(0, modules.indexOf(activeModule) - 1)]);
 $('#next-module').onclick = () => activateModule(modules[Math.min(modules.length - 1, modules.indexOf(activeModule) + 1)]);
 $('#show-all').onclick = () => { showAll = !showAll; renderFlow(); };
@@ -269,7 +279,7 @@ $('#update-form').addEventListener('submit', async (event) => {
   button.disabled = true; $('#update-status').className = 'update-note'; $('#update-status').textContent = 'Validando e aplicando o pacote…';
   try {
     const result = await api('/api/admin/updates', { method: 'POST', headers: { 'Content-Type': 'application/zip', 'X-Update-Filename': encodeURIComponent(file.name), 'X-Update-Version': version, 'X-Update-Type': type, 'X-Update-Message': encodeURIComponent(message) }, body: file });
-    form.reset(); $('#update-status').className = 'update-note ok'; $('#update-status').textContent = `Versão ${result.version} aplicada: ${result.files.join(', ')}. Cópia de segurança em ${result.backup}.${result.restartRequired ? ' Reinicie o serviço para carregar a atualização do servidor.' : ' Recarregue a página para usar a nova interface.'}`; toast(`Atualização ${result.version} aplicada.`, 'success'); await loadDeveloper();
+    form.reset(); $('#update-status').className = 'update-note ok'; $('#update-status').textContent = `Versão ${result.version} aplicada: ${result.files.join(', ')}. Cópia de segurança em ${result.backup}.${result.autoRestart ? ' O serviço está reiniciando sozinho; recarregue a página em alguns segundos.' : result.restartRequired ? ' Reinicie o serviço para carregar a atualização do servidor.' : ' Recarregue a página para usar a nova interface.'}`; toast(`Atualização ${result.version} aplicada.`, 'success'); await loadDeveloper();
   } catch (error) { $('#update-status').className = 'update-note bad'; $('#update-status').textContent = error.message; toast(error.message, 'error'); } finally { button.disabled = false; }
 });
 

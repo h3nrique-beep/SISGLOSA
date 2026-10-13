@@ -282,12 +282,16 @@ td code { display: inline-block; margin: 1px 2px 1px 0; }
 .document-model .summary .observation { font-size: 8pt; line-height: 1.25; overflow-wrap: break-word; }
 .document-model .money { text-align: right; white-space: nowrap; }
 .document-model .total { text-align: right; }
-.document-model .signatures { display: flex; gap: 20px; margin-top: 38px; font: 9pt Arial, sans-serif; }
+.document-model .signatures { display: flex; gap: 20px; margin-top: 72px; font: 9pt Arial, sans-serif; }
 .document-model .signatures div { flex: 1; border-top: 1px solid #111; padding-top: 4px; text-align: center; }
 .report-footer { display: flex; align-items: center; gap: 8px; margin-top: 28px; font: 8pt "Times New Roman", serif; }
 .report-footer .leader { flex: 1; border-bottom: 1px dotted #777; }
-.report-pages { white-space: nowrap; }
 .custom-suggestions { position: absolute; z-index: 70; max-height: 230px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); padding: 5px; }
+.suggestion-row { display: flex; align-items: stretch; border-bottom: 1px solid var(--line); }
+.suggestion-row:last-child { border-bottom: 0; }
+.custom-suggestions .suggestion-row button { border-bottom: 0; }
+.custom-suggestions .suggestion-remove { display: grid; width: 36px; flex: none; place-items: center; color: var(--muted); padding: 0; text-align: center; }
+.custom-suggestions .suggestion-remove:hover { background: var(--red-soft); color: var(--red); }
 .custom-suggestions button { display: block; width: 100%; min-height: 36px; border: 0; border-bottom: 1px solid var(--line); border-radius: 4px; background: transparent; color: var(--ink); padding: 8px 9px; text-align: left; font-size: 13px; font-weight: 600; }
 .custom-suggestions button:last-child { border-bottom: 0; }
 .custom-suggestions button:hover { background: var(--blue-soft); color: var(--ink); }

@@ -1,6 +1,6 @@
 # Implantação no Proxmox VE 8.3
 
-O SISGLOSA é uma aplicação **Node.js 22** (não Java). Use uma VM Debian 12 ou um contêiner LXC **não privilegiado** com Debian 12 no Proxmox VE 8.3.0; os passos dentro da máquina são os mesmos. Para esta aplicação, 2 vCPU, 2 GB de RAM e 16 GB de disco são suficientes. Marque **Start at boot**, mantenha o firewall do Proxmox ativo e libere somente a porta 80 (e 443 quando o HTTPS estiver configurado). Em VM, ative a opção **QEMU Guest Agent** e instale `qemu-guest-agent`. Não é necessário habilitar *nesting*.
+O SISGLOSA é uma aplicação **Node.js 22** (não Java). Use uma VM Debian 12 ou um contêiner LXC **não privilegiado** com Debian 12 no Proxmox VE 8.3.0; os passos dentro da máquina são os mesmos. Para esta aplicação, 2 vCPU, 2 GB de RAM e 16 GB de disco são suficientes. Marque **Start at boot**, mantenha o firewall do Proxmox ativo e libere somente a porta 80 (e 443 quando o HTTPS estiver configurado). Em VM, ative a opção **QEMU Guest Agent** e instale `qemu-guest-agent`. Em contêiner LXC, mantenha **nesting** ativado (padrão do Proxmox 8 para contêiner não privilegiado): o `sisglosa.service` usa isolamentos do systemd que podem falhar com `status=226/NAMESPACE` sem ele.
 
 ## 1. Dependências
 
@@ -112,7 +112,7 @@ São aceitos apenas `server.js`, `lib/passwords.js`, `lib/pacote.js`, `public/in
 Depois de aplicar:
 
 - se o pacote alterou só a interface (`public/*`), recarregue a página;
-- se alterou `server.js` ou `lib/passwords.js`, o painel avisa e é preciso reiniciar: `systemctl restart sisglosa`.
+- se alterou `server.js` ou `lib/`, o serviço reinicia sozinho logo após a aplicação (o `sisglosa.service` usa `Restart=always`); basta recarregar a página em alguns segundos.
 
 **Recuperação.** Se uma atualização causar problema, restaure a cópia anterior e reinicie:
 
