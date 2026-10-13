@@ -75,23 +75,27 @@ O sistema foi pensado para dois usuários:
 
 ## 5. Atualizações pelo painel (pacote .zip)
 
-Em **Administração › Atualizações do SISGLOSA**, o administrador envia um pacote `.zip` de até 25 MB. O pacote deve trazer, na raiz, o manifesto `sisglosa-update.json` e somente os arquivos listados nele:
+O pacote é gerado na máquina de desenvolvimento (a que tem o código do projeto), no mesmo modelo do Sentinela: um comando monta o `.zip` e o painel o valida e aplica.
+
+```bash
+npm run pacote -- --versao 2.0.1 --mensagem "Corrige a impressão do relatório" --tipo corretiva
+```
+
+O comando grava `output/pacotes/sisglosa-2.0.1.zip` e mostra os arquivos, o tamanho e o SHA-256. Opções: `--tipo corretiva|evolutiva|seguranca` (padrão `corretiva`), `--arquivos public/app.js,public/styles.css` (só esses), `--desde <commit-ou-tag>` (só o que mudou desde essa referência), `--saida <pasta>` e `--forcar` (sobrescreve um pacote existente). Sem `--arquivos` nem `--desde`, o pacote leva todos os arquivos permitidos.
+
+Em **Administração › Atualizações do SISGLOSA**, o administrador envia o `.zip` (até 25 MB). O pacote traz o manifesto `sisglosa-update.json`, gerado pelo comando, e somente os arquivos listados nele:
 
 ```json
 {
   "product": "SISGLOSA",
   "version": "2.0.1",
+  "type": "corretiva",
+  "message": "Corrige a impressão do relatório",
   "files": ["public/app.js", "public/styles.css"]
 }
 ```
 
-São aceitos apenas `server.js`, `lib/passwords.js`, `public/index.html`, `public/app.js` e `public/styles.css`. O sistema valida o manifesto, recusa qualquer outro arquivo, guarda uma cópia dos arquivos substituídos em `data/updates/backups/<carimbo>/` e registra o pacote no histórico.
-
-Para montar o pacote no Windows, a partir da pasta do projeto (mantém os caminhos internos):
-
-```powershell
-tar -a -c -f sisglosa-2.0.1.zip sisglosa-update.json public/app.js public/styles.css
-```
+São aceitos apenas `server.js`, `lib/passwords.js`, `lib/pacote.js`, `public/index.html`, `public/app.js` e `public/styles.css`. Antes de aplicar, o sistema valida o manifesto (versão, mensagem e tipo), recusa qualquer outro arquivo e recusa arquivo JavaScript com erro de sintaxe. Depois guarda uma cópia dos arquivos substituídos **e do banco** (`guias.db`) em `data/updates/backups/<carimbo>/` e registra versão, tipo, mensagem e arquivos no histórico da tela.
 
 Depois de aplicar:
 
@@ -105,6 +109,8 @@ runuser -u sisglosa -- cp -a /opt/sisglosa/data/updates/backups/<carimbo>/. /opt
 systemctl restart sisglosa
 curl http://127.0.0.1:8080/health
 ```
+
+Se a atualização também mudou o banco e for preciso voltá-lo, pare o serviço (`systemctl stop sisglosa`), copie `guias.db` da mesma pasta de cópia para `/opt/sisglosa/data/guias.db` (dono `sisglosa`, permissão `600`) e inicie de novo. Com MySQL, use o backup diário.
 
 ### Atualização por Git (alternativa)
 

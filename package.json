@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "migrate:sqlite": "node scripts/migrate-sqlite-to-mysql.js",
-    "check:syntax": "node --check server.js && node --check public/app.js && node --check lib/passwords.js && node --check scripts/migrate-sqlite-to-mysql.js && node --check scripts/smoke-auth.js",
+    "pacote": "node scripts/gerar-pacote.js",
+    "check:syntax": "node --check server.js && node --check public/app.js && node --check lib/passwords.js && node --check lib/pacote.js && node --check scripts/migrate-sqlite-to-mysql.js && node --check scripts/gerar-pacote.js && node --check scripts/smoke-auth.js",
     "check": "npm run check:syntax && node scripts/smoke-auth.js"
   },
   "dependencies": {

@@ -75,6 +75,7 @@ npm run migrate:sqlite
 ```powershell
 npm run check          # verifica a sintaxe e a autenticação básica
 npm start              # inicia a aplicação
+npm run pacote         # gera o pacote .zip de atualização
 npm run migrate:sqlite # migra SQLite para MySQL/MariaDB
 ```
 
@@ -82,17 +83,15 @@ O servidor usa a porta `8080` e aceita conexões apenas em `127.0.0.1`. Para alt
 
 ## Atualizações pelo administrador
 
-Na tela **Administração**, um administrador pode enviar um ZIP oficial. O pacote deve trazer, na raiz, o manifesto `sisglosa-update.json` e somente os arquivos indicados nele:
+O pacote é gerado com um comando e aplicado pela tela **Administração**:
 
-```json
-{
-  "product": "SISGLOSA",
-  "version": "2.1.0",
-  "files": ["public/app.js", "public/styles.css"]
-}
+```powershell
+npm run pacote -- --versao 2.0.1 --mensagem "Descrição da mudança" --tipo corretiva
 ```
 
-São aceitos `server.js`, `lib/passwords.js`, `public/index.html`, `public/app.js` e `public/styles.css`. O sistema valida o manifesto, bloqueia arquivos fora dessa lista e guarda uma cópia dos arquivos substituídos em `data/updates/backups`. Atualizações que incluam `server.js` ou `lib/passwords.js` exigem reinício do serviço.
+O comando cria `output/pacotes/sisglosa-2.0.1.zip` com o manifesto `sisglosa-update.json` (versão, tipo, mensagem e arquivos). Opções: `--tipo corretiva|evolutiva|seguranca`, `--arquivos a,b` (só esses), `--desde <commit-ou-tag>` (só o que mudou), `--saida <pasta>` e `--forcar`.
+
+São aceitos `server.js`, `lib/passwords.js`, `lib/pacote.js`, `public/index.html`, `public/app.js` e `public/styles.css`. Ao enviar o `.zip`, o administrador vê o resultado e o sistema valida o manifesto, bloqueia arquivos fora dessa lista, recusa JavaScript com erro de sintaxe e guarda uma cópia dos arquivos substituídos e do banco SQLite em `data/updates/backups`. O histórico mostra versão, tipo, mensagem e arquivos. Atualizações que incluam `server.js`, `lib/passwords.js` ou `lib/pacote.js` exigem reinício do serviço.
 
 ## Implantação no Proxmox VE
 

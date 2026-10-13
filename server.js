@@ -23,7 +23,8 @@ const LOGIN_WINDOW_MS = 15 * 60 * 1000;
 const MAX_LOGIN_ATTEMPTS = 5;
 const MAX_BODY_SIZE = 1_000_000;
 const MAX_UPDATE_SIZE = 25 * 1024 * 1024;
-const UPDATE_FILES = new Set(['server.js', 'lib/passwords.js', 'public/index.html', 'public/app.js', 'public/styles.css']);
+const pacote = require('./lib/pacote');
+const UPDATE_FILES = new Set(pacote.UPDATE_FILES);
 const APP_VERSION = require('./package.json').version;
 const UPDATE_BACKUP_ROOT = process.env.UPDATE_BACKUP_ROOT || path.join(ROOT, 'data', 'updates', 'backups');
 let db;
@@ -80,6 +81,11 @@ async function initializeDatabase() {
   const editColumns = mysql ? await all('SHOW COLUMNS FROM guide_edits') : await all('PRAGMA table_info(guide_edits)');
   const editNames = new Set(editColumns.map((column) => mysql ? column.Field : column.name));
   if (!editNames.has('details')) await execute(`ALTER TABLE guide_edits ADD COLUMN details ${longText}`);
+  const packageColumns = mysql ? await all('SHOW COLUMNS FROM update_packages') : await all('PRAGMA table_info(update_packages)');
+  const packageNames = new Set(packageColumns.map((column) => mysql ? column.Field : column.name));
+  if (!packageNames.has('message')) await execute(`ALTER TABLE update_packages ADD COLUMN message ${longText}`);
+  if (!packageNames.has('kind')) await execute(`ALTER TABLE update_packages ADD COLUMN kind ${text} NOT NULL DEFAULT 'corretiva'`);
+  if (!packageNames.has('backup')) await execute(`ALTER TABLE update_packages ADD COLUMN backup ${text} NOT NULL DEFAULT ''`);
   if (!mysql) db.exec(`UPDATE guide_items SET specialty=COALESCE((SELECT specialty FROM guides WHERE number=guide_number), '') WHERE specialty=''; UPDATE guide_items SET crm=COALESCE((SELECT crm FROM guides WHERE number=guide_number), '') WHERE crm='';`);
   if (!await one('SELECT setting_key FROM system_settings WHERE setting_key=?', ['app_version'])) await run('INSERT INTO system_settings (setting_key, setting_value) VALUES (?, ?)', ['app_version', APP_VERSION]);
 }
@@ -128,7 +134,7 @@ async function systemInfo() {
   const version = (await one('SELECT setting_value FROM system_settings WHERE setting_key=?', ['app_version']))?.setting_value || APP_VERSION;
   return { version, updates: (await one('SELECT COUNT(*) AS total FROM update_packages')).total };
 }
-async function updateHistory() { return all('SELECT version, filename, applied_by, files, created_at FROM update_packages ORDER BY id DESC LIMIT 20'); }
+async function updateHistory() { return all('SELECT version, filename, applied_by, files, message, kind, backup, created_at FROM update_packages ORDER BY id DESC LIMIT 20'); }
 async function applyUpdatePackage(buffer, filename, username) {
   if (!buffer.length) throw updateError('Selecione um pacote ZIP.');
   let archive;
@@ -143,7 +149,12 @@ async function applyUpdatePackage(buffer, filename, username) {
   let manifest;
   try { manifest = JSON.parse(manifestEntry.getData().toString('utf8')); } catch { throw updateError('O manifesto do pacote é inválido.'); }
   const files = Array.isArray(manifest.files) ? manifest.files : [];
-  if (manifest.product !== 'SISGLOSA' || !/^\d+\.\d+\.\d+(?:[-+][\w.-]+)?$/.test(String(manifest.version || '')) || !files.length || new Set(files).size !== files.length || files.some((file) => !UPDATE_FILES.has(file)) || files.length !== names.filter((name) => name !== 'sisglosa-update.json').length || files.some((file) => !names.includes(file))) throw updateError('O manifesto não corresponde aos arquivos permitidos do SISGLOSA.');
+  if (manifest.product !== 'SISGLOSA' || !pacote.VERSION_PATTERN.test(String(manifest.version || '')) || !files.length || new Set(files).size !== files.length || files.some((file) => !UPDATE_FILES.has(file)) || files.length !== names.filter((name) => name !== pacote.MANIFEST_NAME).length || files.some((file) => !names.includes(file))) throw updateError('O manifesto não corresponde aos arquivos permitidos do SISGLOSA.');
+  const message = String(manifest.message || '').trim(), type = String(manifest.type || 'corretiva');
+  if (!message || message.length > pacote.MAX_MESSAGE) throw updateError(`Informe a mensagem do pacote (campo "message" do manifesto), com até ${pacote.MAX_MESSAGE} caracteres.`);
+  if (!pacote.KINDS.includes(type)) throw updateError(`Tipo de atualização inválido. Use: ${pacote.KINDS.join(', ')}.`);
+  const contents = new Map(files.map((file) => [file, entries.find((candidate) => candidate.entryName.replaceAll('\\', '/') === file).getData()]));
+  for (const [file, content] of contents) { const problem = pacote.syntaxError(file, content); if (problem) throw updateError(`O arquivo ${file} tem erro de sintaxe (${problem}); o pacote não foi aplicado.`); }
   const backupRoot = path.join(UPDATE_BACKUP_ROOT, `${Date.now()}-${crypto.randomUUID()}`);
   const backedUp = [];
   try {
@@ -151,16 +162,18 @@ async function applyUpdatePackage(buffer, filename, username) {
       const target = path.join(ROOT, file); if (!fs.existsSync(target)) throw updateError(`Arquivo de destino ausente: ${file}.`);
       const backup = path.join(backupRoot, file); fs.mkdirSync(path.dirname(backup), { recursive: true }); fs.copyFileSync(target, backup); backedUp.push(file);
     }
-    for (const file of files) { const entry = entries.find((candidate) => candidate.entryName.replaceAll('\\', '/') === file); fs.writeFileSync(path.join(ROOT, file), entry.getData()); }
+    // Cópia consistente do SQLite antes de o código novo (que pode migrar tabelas ao reiniciar) rodar; no MySQL vale o backup-sisglosa.sh.
+    if (!mysql) db.exec(`VACUUM INTO '${path.join(backupRoot, 'guias.db').replaceAll("'", "''")}'`);
+    for (const [file, content] of contents) fs.writeFileSync(path.join(ROOT, file), content);
     await transaction(async (connection) => {
-      await run('INSERT INTO update_packages (version, filename, applied_by, files) VALUES (?, ?, ?, ?)', [manifest.version, filename, username, JSON.stringify(files)], connection);
+      await run('INSERT INTO update_packages (version, filename, applied_by, files, message, kind, backup) VALUES (?, ?, ?, ?, ?, ?, ?)', [manifest.version, filename, username, JSON.stringify(files), message, type, backupRoot], connection);
       await run('UPDATE system_settings SET setting_value=? WHERE setting_key=?', [manifest.version, 'app_version'], connection);
     });
   } catch (error) {
     for (const file of backedUp) fs.copyFileSync(path.join(backupRoot, file), path.join(ROOT, file));
     throw error;
   }
-  return { version: manifest.version, files, restartRequired: files.includes('server.js') || files.includes('lib/passwords.js') };
+  return { version: manifest.version, type, message, files, backup: backupRoot, restartRequired: files.some((file) => pacote.RESTART_FILES.includes(file)) };
 }
 async function guide(id) {
   const data = await one('SELECT number, ocs, patient, billed, attendance_number, status, finalized_at FROM guides WHERE number=?', [id]);
