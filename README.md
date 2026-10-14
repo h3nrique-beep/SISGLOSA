@@ -91,7 +91,7 @@ npm run pacote -- --versao 2.0.1 --mensagem "Descrição da mudança" --tipo cor
 
 O comando cria `output/pacotes/sisglosa-2.0.1.zip` com o manifesto `sisglosa-update.json` (versão, tipo, mensagem e arquivos). Opções: `--tipo corretiva|evolutiva`, `--arquivos a,b` (só esses), `--desde <commit-ou-tag>` (só o que mudou), `--saida <pasta>` e `--forcar`.
 
-São aceitos `server.js`, `lib/passwords.js`, `lib/pacote.js`, `public/index.html`, `public/app.js` e `public/styles.css`. Ao enviar o `.zip`, o administrador vê o resultado e o sistema valida o manifesto, bloqueia arquivos fora dessa lista, recusa JavaScript com erro de sintaxe e guarda uma cópia dos arquivos substituídos e do banco SQLite em `data/updates/backups`. O histórico mostra versão, tipo, mensagem e arquivos. Atualizações que incluam `server.js`, `lib/passwords.js` ou `lib/pacote.js` exigem reinício do serviço.
+O pacote pode trazer arquivos novos ou alterados de `server.js`, `package.json`, `package-lock.json`, `lib/`, `public/`, `scripts/` e `deploy/` (até 300 arquivos); `data/`, `node_modules/`, `.env` e arquivos ocultos são sempre recusados. Se o pacote trouxer `package.json`, o painel roda `npm install --omit=dev` antes de reiniciar (o CT precisa de acesso à internet; sem ele o pacote é recusado e desfeito). Ao enviar o `.zip`, o administrador vê o resultado e o sistema valida o manifesto, bloqueia arquivos fora dessa lista, recusa JavaScript com erro de sintaxe e guarda uma cópia dos arquivos substituídos e do banco SQLite em `data/updates/backups`. O histórico mostra versão, tipo, mensagem e arquivos. Atualizações que incluam `server.js`, `lib/passwords.js` ou `lib/pacote.js` exigem reinício do serviço.
 
 ## Implantação no Proxmox VE
 

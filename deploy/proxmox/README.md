@@ -93,7 +93,7 @@ O pacote é sempre gerado neste projeto, na máquina de desenvolvimento (a pasta
 npm run pacote -- --versao 2.0.1 --mensagem "Corrige a impressão do relatório" --tipo corretiva
 ```
 
-O comando grava `output/pacotes/sisglosa-2.0.1.zip` e mostra os arquivos, o tamanho e o SHA-256. Opções: `--tipo corretiva|evolutiva` (padrão `corretiva`), `--arquivos public/app.js,public/styles.css` (só esses), `--desde <commit-ou-tag>` (só o que mudou desde essa referência), `--saida <pasta>` e `--forcar` (sobrescreve um pacote existente). Sem `--arquivos` nem `--desde`, o pacote leva todos os arquivos permitidos.
+O comando grava `output/pacotes/sisglosa-2.0.1.zip` e mostra os arquivos, o tamanho e o SHA-256. Opções: `--tipo corretiva|evolutiva` (padrão `corretiva`), `--arquivos public/app.js,public/styles.css` (só esses), `--desde <commit-ou-tag>` (só o que mudou desde essa referência), `--saida <pasta>` e `--forcar` (sobrescreve um pacote existente). Sem `--arquivos` nem `--desde`, o pacote leva o código da aplicação versionado no git (`server.js`, `package.json`, `lib/` e `public/`).
 
 Em **Desenvolvedor › Aplicar pacote de atualização**, o administrador envia o `.zip` (até 25 MB) e informa a próxima versão, o tipo (corretiva ou evolutiva) e a descrição do que mudou. O pacote traz o manifesto `sisglosa-update.json`, gerado pelo comando, e somente os arquivos listados nele:
 
@@ -107,7 +107,7 @@ Em **Desenvolvedor › Aplicar pacote de atualização**, o administrador envia 
 }
 ```
 
-São aceitos apenas `server.js`, `lib/passwords.js`, `lib/pacote.js`, `public/index.html`, `public/app.js` e `public/styles.css`. Antes de aplicar, o sistema valida o manifesto (versão, mensagem e tipo), recusa qualquer outro arquivo e recusa arquivo JavaScript com erro de sintaxe. Depois guarda uma cópia dos arquivos substituídos **e do banco** (`guias.db`) em `data/updates/backups/<carimbo>/` e registra versão, tipo, mensagem e arquivos no histórico da tela.
+O pacote pode trazer arquivos novos ou alterados de `server.js`, `package.json`, `package-lock.json`, `lib/`, `public/`, `scripts/` e `deploy/` (até 300 arquivos); `data/`, `node_modules/`, `.env` e arquivos ocultos são sempre recusados. Se o pacote trouxer `package.json`, o painel roda `npm install --omit=dev` antes de reiniciar (o CT precisa de acesso à internet; sem ele o pacote é recusado e desfeito). Antes de aplicar, o sistema valida o manifesto (versão, mensagem e tipo), recusa qualquer outro arquivo e recusa arquivo JavaScript com erro de sintaxe. Depois guarda uma cópia dos arquivos substituídos **e do banco** (`guias.db`) em `data/updates/backups/<carimbo>/` e registra versão, tipo, mensagem e arquivos no histórico da tela.
 
 Depois de aplicar:
 
