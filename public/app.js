@@ -138,10 +138,20 @@ function renderEditHistory(entries = []) { const target = $('#edit-history'); ta
 async function loadEditHistory(number = $('#guide-number').value) { if (!number) return renderEditHistory(); try { renderEditHistory(await api(`/api/guides/${number}/history`)); } catch { $('#edit-history').replaceChildren(Object.assign(document.createElement('li'), { className: 'muted', textContent: 'Histórico indisponível no momento.' })); } }
 // Rascunho automático no servidor: sobrevive a fechar a aba e a trocar de máquina; some quando a guia é gravada.
 function draftPayload() { return { number: $('#guide-number').value, guideCode: $('#guide-code').value, status: currentGuideStatus, ocs: $('#ocs').value, patient: $('#patient').value, attendanceNumber: $('#attendance-number').value, billed: $('#billed').value, activeModule, items: rows().map(rowValues) }; }
-function persistDraft() { if (!currentGuideEditable) return; clearTimeout(draftTimer); draftTimer = setTimeout(() => api('/api/draft', { method: 'PUT', body: JSON.stringify(draftPayload()) }).catch(() => {}), 800); }
-function clearDraft() { clearTimeout(draftTimer); return api('/api/draft', { method: 'DELETE' }).catch(() => {}); }
+// Rascunho resistente a atualização: se o servidor estiver reiniciando, tenta de novo a cada 3 s; se a sessão cair,
+// guarda no navegador e devolve ao servidor no próximo login do mesmo usuário (depois apaga a cópia local).
+const draftStashKey = () => `sisglosa-rascunho:${currentSession?.username || ''}`;
+const stash = { get: (key) => { try { return localStorage.getItem(key); } catch { return null; } }, set: (key, value) => { try { localStorage.setItem(key, value); } catch {} }, drop: (key) => { try { localStorage.removeItem(key); } catch {} } };
+function persistDraft(delay = 800) { if (!currentGuideEditable) return; clearTimeout(draftTimer); draftTimer = setTimeout(sendDraft, delay); }
+async function sendDraft() {
+  if (!currentSession) return;
+  const key = draftStashKey(), body = JSON.stringify(draftPayload());
+  try { await api('/api/draft', { method: 'PUT', body }); stash.drop(key); } catch { stash.set(key, body); if (currentSession) draftTimer = setTimeout(sendDraft, 3000); }
+}
+function clearDraft() { clearTimeout(draftTimer); stash.drop(draftStashKey()); return api('/api/draft', { method: 'DELETE' }).catch(() => {}); }
 async function restoreDraft() {
   try {
+    const pending = stash.get(draftStashKey()); if (pending) { await api('/api/draft', { method: 'PUT', body: pending }); stash.drop(draftStashKey()); }
     const draft = await api('/api/draft'); if (!draft?.items?.length) return;
     $('#guide-number').value = draft.number || ''; currentGuideStatus = draft.status === 'FINALIZADA' ? 'FINALIZADA' : 'RASCUNHO';
     $('#guide-code').value = draft.guideCode || ''; $('#ocs').value = draft.ocs || ''; $('#patient').value = draft.patient || ''; $('#attendance-number').value = draft.attendanceNumber || ''; $('#billed').value = draft.billed || '0,00';
@@ -171,7 +181,7 @@ function setGuideEditable(editable, editableUntil = null) { currentGuideEditable
 function resetGuide(discardDraft = false) { if (discardDraft) clearDraft(); $('#guide-form').reset(); $('#guide-number').value = ''; $('#items').replaceChildren(); activeModule = modules[0]; currentGuideStatus = 'RASCUNHO'; showAll = false; addItem(); setGuideEditable(true); $('#print-guide').disabled = true; $('#billed').value = '0,00'; totals(); renderEditHistory(); $('#attendance-warning').hidden = true; navigate('guide', false); }
 async function saveGuide(status = currentGuideStatus) {
   const items = rows().map(rowValues); const saved = await api('/api/guides', { method: 'POST', body: JSON.stringify({ number: $('#guide-number').value || 0, guideCode: $('#guide-code').value, ocs: $('#ocs').value, patient: $('#patient').value, attendanceNumber: $('#attendance-number').value, billed: amount($('#billed').value), items, status }) });
-  currentGuideStatus = saved.status; $('#guide-number').value = saved.number; $('#print-guide').disabled = saved.status !== 'FINALIZADA'; setGuideEditable(saved.editable, saved.editable_until); clearTimeout(draftTimer); toast(status === 'FINALIZADA' ? 'Guia finalizada com sucesso.' : 'Rascunho salvo com sucesso.', 'success'); loadOcs(); loadModules(); loadJustifications(); await loadEditHistory(saved.number); return saved;
+  currentGuideStatus = saved.status; $('#guide-number').value = saved.number; $('#print-guide').disabled = saved.status !== 'FINALIZADA'; setGuideEditable(saved.editable, saved.editable_until); clearTimeout(draftTimer); stash.drop(draftStashKey()); toast(status === 'FINALIZADA' ? 'Guia finalizada com sucesso.' : 'Rascunho salvo com sucesso.', 'success'); loadOcs(); loadModules(); loadJustifications(); await loadEditHistory(saved.number); return saved;
 }
 async function finalizeGuide() { if (!await confirmAction('A guia será finalizada e aberta para impressão.', { title: 'Finalizar guia', confirm: 'Finalizar' })) return; const report = window.open('', '_blank'); try { const saved = await saveGuide('FINALIZADA'); if (report) report.location = `/api/guides/${saved.number}/report`; } catch (error) { report?.close(); throw error; } }
 function statusBadge(status) { return `<span class="guide-status ${status === 'FINALIZADA' ? 'finalized' : 'draft'}">${status === 'FINALIZADA' ? 'Finalizada' : 'Rascunho'}</span>`; }

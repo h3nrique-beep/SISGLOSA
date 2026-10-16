@@ -37,7 +37,7 @@ const routes = [
     const { id, session } = await auth.login(ctx.request, await body(ctx.request));
     return ctx.reply(200, await sessionData(session), { 'Set-Cookie': auth.sessionCookie(id) });
   }],
-  ['POST', '/api/logout', 'public', (ctx) => { auth.logout(ctx.request); return ctx.reply(200, {}, { 'Set-Cookie': auth.sessionCookie('', 0) }); }],
+  ['POST', '/api/logout', 'public', async (ctx) => { await auth.logout(ctx.request); return ctx.reply(200, {}, { 'Set-Cookie': auth.sessionCookie('', 0) }); }],
   ['GET', '/api/session', 'session', (ctx) => sessionData(ctx.session)],
   ['POST', '/api/password', 'session', async (ctx) => { await auth.changePassword(ctx.session, (await body(ctx.request)).password); return sessionData(ctx.session); }],
 
@@ -102,7 +102,7 @@ const server = http.createServer(async (request, response) => {
     const route = matchRoute(request.method, pathname);
     let session = null;
     if (route?.access !== 'public') {
-      session = auth.authenticated(request);
+      session = await auth.authenticated(request);
       if (!session) return fail(response, 401, 'Sessão expirada.');
       if (route?.access !== 'session' && session.mustChangePassword) return fail(response, 403, 'Troque a senha temporária para continuar.');
       if (route?.access === 'admin' && session.role !== 'admin') return fail(response, 403, 'Acesso exclusivo do administrador.');
