@@ -8,14 +8,12 @@ let activeModule = modules[0];
 let showAll = false;
 let draftTimer;
 let currentSession;
-let guideFilter = '';
 let currentGuideStatus = 'RASCUNHO';
 let currentGuideEditable = true;
 let justificationOptions = [];
 let ocsOptions = [], patientOptions = [], specificationOptions = [];
 let justificationTarget;
 let manualJustificationTarget;
-const draftKey = 'pmgu-guide-draft';
 // Nova chave: a antiga gravava o tema do sistema automaticamente e prenderia todos no escuro.
 const themeKey = 'sisglosa-theme';
 const routes = { dashboard: '/', guide: '/guias', recent: '/registros', admin: '/administracao', developer: '/desenvolvedor' };
@@ -54,7 +52,7 @@ async function api(url, options = {}) {
 }
 function showLogin() { currentSession = null; history.replaceState(null, '', '/login'); $('#app-view').hidden = true; $('#app-view').style.display = 'none'; $('#password-view').hidden = true; $('#login-view').hidden = false; $('#login-view').style.display = 'grid'; document.body.classList.remove('loading'); }
 function showPasswordView() { $('#login-view').hidden = true; $('#login-view').style.display = 'none'; $('#app-view').hidden = true; $('#password-view').hidden = false; $('#password-view').style.display = 'grid'; document.body.classList.remove('loading'); $('#password-form').reset(); $('#password-form input').focus(); }
-function showApp(session) { currentSession = session; const admin = session.role === 'admin'; const screen = routeScreen[location.pathname]; const requestedGuide = Number(new URLSearchParams(location.search).get('guia')); $('#username').textContent = session.username; document.querySelectorAll('.admin-only').forEach((item) => { item.hidden = !admin; }); document.querySelectorAll('.guide-only').forEach((item) => { item.hidden = admin; }); $('#login-view').hidden = true; $('#login-view').style.display = 'none'; $('#password-view').hidden = true; $('#app-view').hidden = false; $('#app-view').style.display = 'flex'; document.body.classList.remove('loading'); if (admin) return navigate(screen === 'developer' ? 'developer' : 'admin', !['admin', 'developer'].includes(screen)); resetGuide(); restoreDraft(); totals(); loadOcs(); loadModules(); loadJustifications(); loadRecent(); navigate(['dashboard', 'guide', 'recent'].includes(screen) ? screen : 'dashboard', !['dashboard', 'guide', 'recent'].includes(screen)); if (screen === 'guide' && Number.isInteger(requestedGuide) && requestedGuide > 0) openGuide(requestedGuide); }
+function showApp(session) { currentSession = session; const admin = session.role === 'admin'; const screen = routeScreen[location.pathname]; const params = new URLSearchParams(location.search), requestedGuide = Number(params.get('guia')), freshGuide = params.has('nova') || requestedGuide > 0; $('#username').textContent = session.username; if (session.version) $('#app-version').textContent = `v${session.version}`; document.querySelectorAll('.admin-only').forEach((item) => { item.hidden = !admin; }); document.querySelectorAll('.guide-only').forEach((item) => { item.hidden = admin; }); $('#login-view').hidden = true; $('#login-view').style.display = 'none'; $('#password-view').hidden = true; $('#app-view').hidden = false; $('#app-view').style.display = 'flex'; document.body.classList.remove('loading'); if (admin) return navigate(screen === 'developer' ? 'developer' : 'admin', !['admin', 'developer'].includes(screen)); resetGuide(); if (!freshGuide) restoreDraft(); totals(); loadOcs(); loadModules(); loadJustifications(); navigate(['dashboard', 'guide', 'recent'].includes(screen) ? screen : 'dashboard', !['dashboard', 'guide', 'recent'].includes(screen)); if (screen === 'guide' && Number.isInteger(requestedGuide) && requestedGuide > 0) openGuide(requestedGuide); }
 
 function moduleOptions(selected) {
   return ['Ajuste', 'Glosa'].map((prefix) => `<optgroup label="${prefix}s">${modules.filter((module) => module.startsWith(prefix)).map((module) => `<option value="${escape(module)}" ${module === selected ? 'selected' : ''}>${escape(module)}</option>`).join('')}</optgroup>`).join('');
@@ -133,24 +131,47 @@ function previewSections(items, prefix, title) {
   return sections ? `<h2>${title}</h2>${sections}` : '';
 }
 function preview(items, billed, glosa, ajuste) {
-  $('#preview').innerHTML = `<article class="document-model"><div class="official"><img class="official-logo" src="/template-logo.png" alt="Exército Brasileiro">MINISTÉRIO DA DEFESA<br>EXÉRCITO BRASILEIRO<br>CMDO 15ª BDA INF MEC</div><p class="identity">OCS: ${escape($('#ocs').value)}<br>PACIENTE: ${escape($('#patient').value)}<br>GUIA Nº: ${escape($('#guide-number').value)}</p><table class="summary"><thead><tr><th>Valor<br>Apresentado</th><th>Glosa</th><th>Ajuste</th><th>Valor<br>Auditado</th><th>Observação</th></tr></thead><tbody><tr><td class="money">${format(billed)}</td><td class="money">${format(glosa)}</td><td class="money">${format(ajuste)}</td><td class="money">${format(billed - glosa + ajuste)}</td><td class="observation">Com relação às glosas e possíveis recursos, favor cumprir rigorosamente os prazos e procedimentos previstos nas cláusulas 7.1.21 até a cláusula 7.1.31 do Termo de Contrato celebrado entre as partes.</td></tr></tbody></table>${previewSections(items, 'Ajuste', 'RELATÓRIO DE AJUSTE')}${previewSections(items, 'Glosa', 'RELATÓRIO DE GLOSA')}<p style="margin-top:26px">Quartel em Cascavel-PR, ${new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}</p><div class="signatures"><div>Médico Auditor da Seção de Auditoria de Contas Médicas</div><div>Enfermeira Auditora da Seção de Auditoria de Contas Médicas</div></div><footer class="report-footer"><span>(Relatório de Glosas do Atendimento ${escape($('#attendance-number').value || '________________')}</span><span class="leader"></span><span>)</span></footer></article>`;
+  $('#preview').innerHTML = `<article class="document-model"><div class="official"><img class="official-logo" src="/template-logo.png" alt="Exército Brasileiro">MINISTÉRIO DA DEFESA<br>EXÉRCITO BRASILEIRO<br>CMDO 15ª BDA INF MEC</div><p class="identity">OCS: ${escape($('#ocs').value)}<br>PACIENTE: ${escape($('#patient').value)}<br>GUIA Nº: ${escape($('#guide-code').value || $('#guide-number').value)}</p><table class="summary"><thead><tr><th>Valor<br>Apresentado</th><th>Glosa</th><th>Ajuste</th><th>Valor<br>Auditado</th><th>Observação</th></tr></thead><tbody><tr><td class="money">${format(billed)}</td><td class="money">${format(glosa)}</td><td class="money">${format(ajuste)}</td><td class="money">${format(billed - glosa + ajuste)}</td><td class="observation">Com relação às glosas e possíveis recursos, favor cumprir rigorosamente os prazos e procedimentos previstos nas cláusulas 7.1.21 até a cláusula 7.1.31 do Termo de Contrato celebrado entre as partes.</td></tr></tbody></table>${previewSections(items, 'Ajuste', 'RELATÓRIO DE AJUSTE')}${previewSections(items, 'Glosa', 'RELATÓRIO DE GLOSA')}<p style="margin-top:26px">Quartel em Cascavel-PR, ${new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}</p><div class="signatures"><div>Médico Auditor da Seção de Auditoria de Contas Médicas</div><div>Enfermeira Auditora da Seção de Auditoria de Contas Médicas</div></div><footer class="report-footer"><span>(Relatório de Glosas do Atendimento ${escape($('#attendance-number').value || '________________')}</span><span class="leader"></span><span>)</span></footer></article>`;
 }
 function renderPreview() { const items = rows().map(rowValues), billed = amount($('#billed').value), glosa = items.filter((item) => item.module.startsWith('Glosa')).reduce((sum, item) => sum + item.amount, 0), ajuste = items.filter((item) => item.module.startsWith('Ajuste')).reduce((sum, item) => sum + item.amount, 0); preview(items, billed, glosa, ajuste); }
 function renderEditHistory(entries = []) { const target = $('#edit-history'); target.replaceChildren(); if (!entries.length) return target.append(Object.assign(document.createElement('li'), { className: 'muted', textContent: 'Salve a guia para registrar o histórico.' })); entries.forEach((entry) => { const item = document.createElement('li'); const action = document.createElement('strong'); const meta = document.createElement('span'); action.textContent = entry.action; meta.textContent = `${entry.username} · ${dateTime(entry.created_at)}`; item.append(action, meta); const details = Array.isArray(entry.details) ? entry.details : []; if (details.length) { const list = Object.assign(document.createElement('ul'), { className: 'history-details' }); list.replaceChildren(...details.map((detail) => Object.assign(document.createElement('li'), { textContent: detail }))); item.append(list); } target.append(item); }); }
 async function loadEditHistory(number = $('#guide-number').value) { if (!number) return renderEditHistory(); try { renderEditHistory(await api(`/api/guides/${number}/history`)); } catch { $('#edit-history').replaceChildren(Object.assign(document.createElement('li'), { className: 'muted', textContent: 'Histórico indisponível no momento.' })); } }
-function persistDraft() { clearTimeout(draftTimer); draftTimer = setTimeout(() => sessionStorage.setItem(draftKey, JSON.stringify({ ocs: $('#ocs').value, patient: $('#patient').value, attendanceNumber: $('#attendance-number').value, billed: $('#billed').value, activeModule, items: rows().map(rowValues) })), 250); }
-function restoreDraft() {
-  try { const draft = JSON.parse(sessionStorage.getItem(draftKey)); if (!draft?.items?.length) return; $('#ocs').value = draft.ocs || ''; $('#patient').value = draft.patient || ''; $('#attendance-number').value = draft.attendanceNumber || ''; $('#billed').value = draft.billed || '0,00'; $('#items').replaceChildren(); activeModule = modules.includes(draft.activeModule) ? draft.activeModule : modules[0]; draft.items.forEach((item) => addItem(item.module, item)); } catch { sessionStorage.removeItem(draftKey); }
+// Rascunho automático no servidor: sobrevive a fechar a aba e a trocar de máquina; some quando a guia é gravada.
+function draftPayload() { return { number: $('#guide-number').value, guideCode: $('#guide-code').value, status: currentGuideStatus, ocs: $('#ocs').value, patient: $('#patient').value, attendanceNumber: $('#attendance-number').value, billed: $('#billed').value, activeModule, items: rows().map(rowValues) }; }
+function persistDraft() { if (!currentGuideEditable) return; clearTimeout(draftTimer); draftTimer = setTimeout(() => api('/api/draft', { method: 'PUT', body: JSON.stringify(draftPayload()) }).catch(() => {}), 800); }
+function clearDraft() { clearTimeout(draftTimer); return api('/api/draft', { method: 'DELETE' }).catch(() => {}); }
+async function restoreDraft() {
+  try {
+    const draft = await api('/api/draft'); if (!draft?.items?.length) return;
+    $('#guide-number').value = draft.number || ''; currentGuideStatus = draft.status === 'FINALIZADA' ? 'FINALIZADA' : 'RASCUNHO';
+    $('#guide-code').value = draft.guideCode || ''; $('#ocs').value = draft.ocs || ''; $('#patient').value = draft.patient || ''; $('#attendance-number').value = draft.attendanceNumber || ''; $('#billed').value = draft.billed || '0,00';
+    $('#items').replaceChildren(); activeModule = modules.includes(draft.activeModule) ? draft.activeModule : modules[0]; draft.items.forEach((item) => addItem(item.module, item));
+    $('#print-guide').disabled = !draft.number || currentGuideStatus !== 'FINALIZADA'; totals(); checkAttendance(); if (draft.number) loadEditHistory(draft.number);
+    if (location.pathname === routes.guide) toast('Rascunho não gravado recuperado. Salve a guia para registrá-lo.', 'success');
+  } catch {}
+}
+let attendanceTimer;
+function checkAttendance() {
+  clearTimeout(attendanceTimer);
+  attendanceTimer = setTimeout(async () => {
+    const number = $('#attendance-number').value.trim(), warning = $('#attendance-warning');
+    if (!number) { warning.hidden = true; return; }
+    try {
+      const others = await api(`/api/guides/attendance?number=${encodeURIComponent(number)}&exclude=${encodeURIComponent($('#guide-number').value || 0)}`);
+      warning.hidden = !others.length;
+      warning.textContent = others.length ? `Atenção: este atendimento já está na${others.length > 1 ? 's' : ''} guia${others.length > 1 ? 's' : ''} nº ${others.map((guide) => guide.number).join(', ')}.` : '';
+    } catch { warning.hidden = true; }
+  }, 400);
 }
 async function loadOcs() { [ocsOptions, patientOptions] = await Promise.all([api('/api/options/ocs'), api('/api/options/patients')]); }
 async function loadSpecifications(module) { specificationOptions = await api(`/api/options/specifications?module=${encodeURIComponent(module)}`); }
 async function loadModules() { modules = await api('/api/options/modules'); savedModules = [...modules]; refreshModuleOptions(); renderFlow(); }
 async function loadJustifications() { justificationOptions = await api('/api/options/justifications'); if (!$('#justification-modal').hidden) renderSavedJustifications($('#saved-justification-search').value); }
 function setGuideEditable(editable, editableUntil = null) { currentGuideEditable = editable; $('#guide-form').querySelectorAll('input, select, textarea, button').forEach((field) => { field.disabled = !editable; }); $('#save-guide').disabled = !editable; $('#finalize-guide').disabled = !editable; const notice = $('#guide-lock-notice'); notice.hidden = editable; if (!editable) notice.textContent = `O prazo de edição terminou em ${dateTime(editableUntil)}. Esta guia continua disponível para consulta e impressão.`; }
-function resetGuide(clearDraft = false) { if (clearDraft) sessionStorage.removeItem(draftKey); $('#guide-form').reset(); $('#guide-number').value = ''; $('#items').replaceChildren(); activeModule = modules[0]; currentGuideStatus = 'RASCUNHO'; showAll = false; addItem(); setGuideEditable(true); $('#print-guide').disabled = true; $('#billed').value = '0,00'; totals(); renderEditHistory(); navigate('guide', false); }
+function resetGuide(discardDraft = false) { if (discardDraft) clearDraft(); $('#guide-form').reset(); $('#guide-number').value = ''; $('#items').replaceChildren(); activeModule = modules[0]; currentGuideStatus = 'RASCUNHO'; showAll = false; addItem(); setGuideEditable(true); $('#print-guide').disabled = true; $('#billed').value = '0,00'; totals(); renderEditHistory(); $('#attendance-warning').hidden = true; navigate('guide', false); }
 async function saveGuide(status = currentGuideStatus) {
-  const items = rows().map(rowValues); const saved = await api('/api/guides', { method: 'POST', body: JSON.stringify({ number: $('#guide-number').value || 0, ocs: $('#ocs').value, patient: $('#patient').value, attendanceNumber: $('#attendance-number').value, billed: amount($('#billed').value), items, status }) });
-  currentGuideStatus = saved.status; $('#guide-number').value = saved.number; $('#print-guide').disabled = saved.status !== 'FINALIZADA'; setGuideEditable(saved.editable, saved.editable_until); sessionStorage.removeItem(draftKey); toast(status === 'FINALIZADA' ? 'Guia finalizada com sucesso.' : 'Rascunho salvo com sucesso.', 'success'); loadOcs(); loadModules(); loadJustifications(); loadRecent(); await loadEditHistory(saved.number); return saved;
+  const items = rows().map(rowValues); const saved = await api('/api/guides', { method: 'POST', body: JSON.stringify({ number: $('#guide-number').value || 0, guideCode: $('#guide-code').value, ocs: $('#ocs').value, patient: $('#patient').value, attendanceNumber: $('#attendance-number').value, billed: amount($('#billed').value), items, status }) });
+  currentGuideStatus = saved.status; $('#guide-number').value = saved.number; $('#print-guide').disabled = saved.status !== 'FINALIZADA'; setGuideEditable(saved.editable, saved.editable_until); clearTimeout(draftTimer); toast(status === 'FINALIZADA' ? 'Guia finalizada com sucesso.' : 'Rascunho salvo com sucesso.', 'success'); loadOcs(); loadModules(); loadJustifications(); await loadEditHistory(saved.number); return saved;
 }
 async function finalizeGuide() { if (!await confirmAction('A guia será finalizada e aberta para impressão.', { title: 'Finalizar guia', confirm: 'Finalizar' })) return; const report = window.open('', '_blank'); try { const saved = await saveGuide('FINALIZADA'); if (report) report.location = `/api/guides/${saved.number}/report`; } catch (error) { report?.close(); throw error; } }
 function statusBadge(status) { return `<span class="guide-status ${status === 'FINALIZADA' ? 'finalized' : 'draft'}">${status === 'FINALIZADA' ? 'Finalizada' : 'Rascunho'}</span>`; }
@@ -162,10 +183,34 @@ function renderDashboardValues(data) {
   $('#dashboard-glosa-rate').textContent = data.billed ? `${(data.glosa / data.billed * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}% do valor apresentado` : 'Valor apresentado não informado';
 }
 async function loadDashboard() { const data = await api('/api/dashboard'); $('#dashboard-total').textContent = data.total; $('#dashboard-open').textContent = data.open; $('#dashboard-finalized').textContent = data.finalized; renderDashboardValues(data); const target = $('#dashboard-guides'); target.replaceChildren(); if (!data.recent.length) return emptyRow(target, 7, 'Nenhuma guia registrada. Crie uma guia para iniciar a auditoria.'); data.recent.forEach((guide) => { const row = document.createElement('tr'); row.innerHTML = `<td>${guide.number}</td><td>${escape(guide.ocs || '—')}</td><td>${escape(guide.patient || '—')}</td><td>${statusBadge(guide.status)}</td><td>${dateTime(guide.finalized_at)}</td><td>${editWindow(guide)}</td><td class="row-actions"><button type="button" class="text-button summary">Resumo</button><a class="text-button open" href="/guias?guia=${guide.number}">Abrir</a></td>`; $('.summary', row).onclick = () => showGuideSummary(guide.number).catch((error) => toast(error.message, 'error')); target.append(row); }); }
+function recentQuery() { const params = new URLSearchParams(); new FormData($('#recent-filters')).forEach((value, key) => { if (String(value).trim()) params.set(key, String(value).trim()); }); return params.toString(); }
+function guideSituation(guide) {
+  if (guide.status !== 'FINALIZADA') return statusBadge(guide.status);
+  return `${statusBadge(guide.status)}<small class="situation-note">${guide.editable ? `edição até ${new Date(guide.editable_until).toLocaleDateString('pt-BR')}` : 'somente consulta'}</small>`;
+}
+const iconButton = (name, icon, label, extra = '') => `<button type="button" class="icon-button ${name}${extra}" title="${label}" aria-label="${label}"><i class="bi bi-${icon}" aria-hidden="true"></i></button>`;
 async function loadRecent() {
-  const guides = await api(`/api/guides${guideFilter ? `?status=${guideFilter}` : ''}`); const target = $('#recent-guides'); target.replaceChildren(); $('#recent-description').textContent = guideFilter ? 'Guias em aberto: continue a edição ou finalize quando estiver pronta.' : 'Abra, imprima ou exclua uma guia.';
-  if (!guides.length) return emptyRow(target, 7, guideFilter ? 'Não há guias em aberto.' : 'Nenhuma guia salva foi encontrada.');
-  guides.forEach((guide) => { const row = document.createElement('tr'); row.innerHTML = `<td>${escape(guide.ocs || '—')}</td><td>${escape(guide.patient || '—')}</td><td>${format(guide.billed)}</td><td>${statusBadge(guide.status)}</td><td>${dateTime(guide.finalized_at)}</td><td>${editWindow(guide)}</td><td class="row-actions"><a class="text-button open" href="/guias?guia=${guide.number}">${guide.editable ? 'Editar' : 'Consultar'}</a>${guide.status === 'FINALIZADA' ? `<button type="button" class="text-button report" data-guide-number="${guide.number}">PDF</button>` : ''}<button type="button" class="text-button delete danger-text">Excluir</button></td>`; if (guide.status === 'FINALIZADA') $('.report', row).onclick = () => window.open(`/api/guides/${guide.number}/report`, '_blank'); $('.delete', row).onclick = async () => { if (!await confirmAction('Esta guia e seus itens serão removidos.', { title: 'Excluir guia', confirm: 'Excluir', danger: true })) return; try { await api(`/api/guides/${guide.number}`, { method: 'DELETE' }); toast('Guia excluída.', 'success'); loadRecent(); loadDashboard(); } catch (error) { toast(error.message, 'error'); } }; target.append(row); });
+  const query = recentQuery();
+  const guides = await api(`/api/guides${query ? `?${query}` : ''}`);
+  const target = $('#recent-guides'); target.replaceChildren();
+  if (!guides.length) return emptyRow(target, 7, query ? 'Nenhuma guia encontrada. Ajuste a busca ou clique em Limpar.' : 'Nenhuma guia salva ainda.');
+  guides.forEach((guide) => {
+    const row = document.createElement('tr');
+    row.innerHTML = `<td>${guide.number}</td><td>${escape(guide.ocs || '—')}</td><td>${escape(guide.patient || '—')}</td><td>${escape(guide.attendance_number || '—')}</td><td class="money">${format(guide.billed)}</td><td class="situation">${guideSituation(guide)}</td><td class="row-actions"><a class="text-button open" href="/guias?guia=${guide.number}">${guide.editable ? 'Abrir' : 'Consultar'}</a>${iconButton('totals', 'bar-chart', 'Ver totais da guia')}${iconButton('duplicate', 'copy', 'Duplicar guia')}${guide.status === 'FINALIZADA' ? iconButton('report', 'printer', 'Imprimir / PDF') : ''}${guide.editable ? iconButton('delete', 'trash', 'Excluir guia', ' danger-text') : ''}</td>`;
+    $('.totals', row).onclick = () => showGuideSummary(guide.number).catch((error) => toast(error.message, 'error'));
+    $('.duplicate', row).onclick = () => duplicateGuide(guide.number).catch((error) => toast(error.message, 'error'));
+    if (guide.status === 'FINALIZADA') $('.report', row).onclick = () => window.open(`/api/guides/${guide.number}/report`, '_blank');
+    if (guide.editable) $('.delete', row).onclick = async () => { if (!await confirmAction(`A guia nº ${guide.number} e seus itens serão removidos.`, { title: 'Excluir guia', confirm: 'Excluir', danger: true })) return; try { await api(`/api/guides/${guide.number}`, { method: 'DELETE' }); toast('Guia excluída.', 'success'); loadRecent(); } catch (error) { toast(error.message, 'error'); } };
+    target.append(row);
+  });
+}
+// Nova guia a partir de outra: mesma OCS e mesmos itens; paciente, atendimento e valor apresentado ficam em branco.
+async function duplicateGuide(number) {
+  const source = await api(`/api/guides/${number}`);
+  resetGuide(true); $('#ocs').value = source.ocs || '';
+  $('#items').replaceChildren(); activeModule = source.items[0]?.module || modules[0]; source.items.forEach((item) => addItem(item.module, item)); if (!source.items.length) addItem();
+  refreshModuleOptions(); totals(); navigate('guide'); persistDraft(); $('#patient').focus();
+  toast(`Nova guia criada a partir da nº ${number}. Informe o paciente e salve.`, 'success');
 }
 async function loadUsers() {
   const users = await api('/api/users'); const target = $('#users'); target.replaceChildren();
@@ -185,7 +230,7 @@ function renderUpdates(system, history) {
   const last = history[0]; $('#ops-last-message').textContent = last?.message || 'Versão de instalação.'; $('#ops-last-kind').textContent = last ? updateKinds[last.kind] || last.kind : '—'; $('#ops-last-date').textContent = last ? dateTime(last.created_at) : 'Nenhum pacote aplicado.';
   const target = $('#update-history'); target.replaceChildren();
   if (!history.length) return emptyRow(target, 6, 'Nenhuma atualização aplicada.');
-  history.forEach((entry) => { let files = []; try { files = JSON.parse(entry.files); } catch {} const row = document.createElement('tr'); row.innerHTML = `<td><strong>v${escape(entry.version)}</strong><br><small class="muted">${escape(entry.filename)}</small></td><td><span class="kind-badge ${escape(entry.kind)}">${escape(updateKinds[entry.kind] || entry.kind)}</span></td><td>${escape(entry.message || '—')}</td><td>${escape(entry.applied_by)}</td><td>${files.map((file) => `<code>${escape(file)}</code>`).join(' ')}</td><td>${dateTime(entry.created_at)}</td>`; target.append(row); });
+  history.forEach((entry) => { let files = []; try { files = JSON.parse(entry.files); } catch {} const row = document.createElement('tr'); row.innerHTML = `<td><strong>v${escape(entry.version)}</strong><br><small class="muted">${escape(entry.filename)}</small></td><td><span class="kind-badge ${escape(entry.kind)}">${escape(updateKinds[entry.kind] || entry.kind)}</span></td><td>${escape(entry.message || '—')}</td><td>${escape(entry.applied_by)}</td><td>${files.slice(0, 6).map((file) => `<code>${escape(file)}</code>`).join(' ')}${files.length > 6 ? ` <small class="muted">+${files.length - 6} arquivos</small>` : ''}</td><td>${dateTime(entry.created_at)}</td>`; target.append(row); });
 }
 function duration(seconds) { const days = Math.floor(seconds / 86400), hours = Math.floor(seconds % 86400 / 3600), minutes = Math.floor(seconds % 3600 / 60); return days ? `${days} d ${hours} h` : hours ? `${hours} h ${minutes} min` : `${Math.max(1, minutes)} min`; }
 function setHealth(online, detail) { $('#health-status').textContent = online ? 'Online' : 'Indisponível'; $('#health-chip').className = `chip ${online ? 'ok' : 'bad'}`; $('#health-detail').textContent = detail; }
@@ -196,7 +241,7 @@ async function loadDeveloper() {
 async function openGuide(number) {
   navigate('guide');
   try {
-    const guide = await api(`/api/guides/${number}`); $('#guide-number').value = guide.number; $('#ocs').value = guide.ocs; $('#patient').value = guide.patient; $('#attendance-number').value = guide.attendance_number || ''; $('#billed').value = Number(guide.billed).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); $('#items').replaceChildren(); currentGuideStatus = guide.status; activeModule = guide.items[0]?.module || modules[0]; showAll = false; guide.items.forEach((item) => addItem(item.module, item)); if (!guide.items.length) addItem(); refreshModuleOptions(); $('#add-module').value = activeModule; $('#print-guide').disabled = guide.status !== 'FINALIZADA'; setGuideEditable(guide.editable, guide.editable_until); totals(); await loadEditHistory(guide.number);
+    const guide = await api(`/api/guides/${number}`); $('#guide-number').value = guide.number; $('#guide-code').value = guide.guide_code || ''; $('#ocs').value = guide.ocs; $('#patient').value = guide.patient; $('#attendance-number').value = guide.attendance_number || ''; $('#billed').value = Number(guide.billed).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); $('#items').replaceChildren(); currentGuideStatus = guide.status; activeModule = guide.items[0]?.module || modules[0]; showAll = false; guide.items.forEach((item) => addItem(item.module, item)); if (!guide.items.length) addItem(); refreshModuleOptions(); $('#add-module').value = activeModule; $('#print-guide').disabled = guide.status !== 'FINALIZADA'; setGuideEditable(guide.editable, guide.editable_until); totals(); checkAttendance(); await loadEditHistory(guide.number);
   } catch (error) {
     toast(error.message || 'Não foi possível abrir esta guia.', 'error');
     navigate('recent');
@@ -209,9 +254,13 @@ $('#password-form').addEventListener('submit', async (event) => { event.preventD
 $('#logout').onclick = async () => { await api('/api/logout', { method: 'POST' }); showLogin(); };
 setTheme(localStorage.getItem(themeKey) || 'light');
 $('#theme-toggle').onclick = () => { const theme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'; localStorage.setItem(themeKey, theme); setTheme(theme); };
-document.querySelectorAll('.nav-link').forEach((button) => { button.onclick = () => { if (button.dataset.screen === 'recent') guideFilter = ''; navigate(button.dataset.screen); }; });
+document.querySelectorAll('.nav-link').forEach((button) => { button.onclick = () => navigate(button.dataset.screen); });
+let recentTimer; const refreshRecent = (delay = 0) => { clearTimeout(recentTimer); recentTimer = setTimeout(() => loadRecent().catch((error) => toast(error.message, 'error')), delay); };
+$('#recent-filters').addEventListener('submit', (event) => { event.preventDefault(); refreshRecent(); });
+$('#recent-filters').addEventListener('input', (event) => refreshRecent(event.target.name === 'q' ? 350 : 0));
+$('#recent-filters').addEventListener('reset', () => refreshRecent(10));
 $('#dashboard-new-guide').onclick = () => { resetGuide(true); navigate('guide'); };
-$('#dashboard-open-guides').onclick = () => { guideFilter = 'RASCUNHO'; navigate('recent'); };
+$('#dashboard-open-guides').onclick = () => { $('#recent-filters').reset(); $('#recent-filters').querySelector('input[name="status"][value="RASCUNHO"]').checked = true; navigate('recent'); };
 $('#add-module').innerHTML = moduleOptions(activeModule);
 $('#add-item').onclick = openItemModal;
 document.querySelectorAll('.item-mode').forEach((button) => { button.onclick = () => setItemMode(button.dataset.mode); });
@@ -229,7 +278,7 @@ $('#manual-justification-modal-close').onclick = $('#manual-justification-modal-
 $('#manual-justification-modal').onclick = (event) => { if (event.target === $('#manual-justification-modal')) closeManualJustificationModal(); };
 $('#manual-justification-form').onsubmit = (event) => { event.preventDefault(); if (!manualJustificationTarget) return; manualJustificationTarget.value = $('#manual-justification-text').value.trim(); closeManualJustificationModal(); totals(); persistDraft(); };
 addEventListener('keydown', (event) => { if (event.key === 'Escape' && !$('#justification-modal').hidden) closeJustificationModal(); if (event.key === 'Escape' && !$('#manual-justification-modal').hidden) closeManualJustificationModal(); if (event.key === 'Escape' && !$('#preview-modal').hidden) $('#preview-modal-close').click(); });
-$('#new-guide').onclick = () => window.open('/guias', '_blank');
+$('#new-guide').onclick = () => window.open('/guias?nova=1', '_blank');
 $('#guide-form').addEventListener('submit', (event) => { event.preventDefault(); saveGuide().catch((error) => toast(error.message, 'error')); });
 $('#save-guide').onclick = () => saveGuide().catch((error) => toast(error.message, 'error'));
 $('#finalize-guide').onclick = () => finalizeGuide().catch((error) => toast(error.message, 'error'));
@@ -258,7 +307,7 @@ $('#preview-guide').onclick = () => { renderPreview(); $('#preview-modal').hidde
 addEventListener('resize', fitPreview);
 $('#preview-modal-close').onclick = () => { $('#preview-modal').hidden = true; $('#preview-guide').focus(); };
 $('#preview-modal').onclick = (event) => { if (event.target === $('#preview-modal')) $('#preview-modal-close').click(); };
-['ocs', 'patient', 'attendance-number'].forEach((id) => $("#" + id).addEventListener('input', () => { totals(); persistDraft(); })); bindMoneyInput($('#billed'));
+['guide-code', 'ocs', 'patient', 'attendance-number'].forEach((id) => $("#" + id).addEventListener('input', () => { totals(); persistDraft(); })); $('#attendance-number').addEventListener('input', checkAttendance); bindMoneyInput($('#billed'));
 bindSuggestions($('#ocs'), () => ocsOptions, 'ocs');
 bindSuggestions($('#patient'), () => patientOptions, 'patients');
 $('#previous-module').onclick = () => activateModule(modules[Math.max(0, modules.indexOf(activeModule) - 1)]);
@@ -271,17 +320,35 @@ $('#update-file').addEventListener('change', showFileName); $('#update-form').ad
 $('#update-form').addEventListener('change', (event) => { if (event.target.name === 'type') suggestVersion(); });
 $('#update-next-version').addEventListener('input', (event) => { event.currentTarget.dataset.edited = '1'; });
 $('#update-message').addEventListener('input', (event) => { $('#update-message-count').textContent = event.currentTarget.value.length; });
+// XHR em vez de fetch: só ele informa o progresso do envio do arquivo.
+function setUpdateProgress(percent, step) { $('#update-progress').hidden = false; $('#update-progress-bar').value = percent; $('#update-progress-percent').textContent = `${percent}%`; $('#update-progress-step').textContent = step; }
+function uploadPackage(file, headers) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest(); xhr.open('POST', '/api/admin/updates'); xhr.setRequestHeader('Content-Type', 'application/zip'); Object.entries(headers).forEach(([name, value]) => xhr.setRequestHeader(name, value));
+    xhr.upload.onprogress = (event) => { if (event.lengthComputable) setUpdateProgress(Math.round(event.loaded / event.total * 70), 'Enviando o pacote…'); };
+    xhr.upload.onload = () => setUpdateProgress(80, 'Validando, copiando os arquivos e aplicando…');
+    xhr.onload = () => { let data = null; try { data = JSON.parse(xhr.responseText); } catch {} if (xhr.status === 401) { showLogin(); return reject(new Error('Sessão expirada.')); } if (xhr.status >= 200 && xhr.status < 300) { setUpdateProgress(100, 'Atualização concluída.'); resolve(data); } else { setUpdateProgress(100, 'Pacote recusado.'); reject(new Error(data?.error || 'Não foi possível aplicar o pacote.')); } };
+    xhr.onerror = () => reject(new Error('Falha de comunicação durante o envio do pacote.'));
+    setUpdateProgress(0, 'Enviando o pacote…'); xhr.send(file);
+  });
+}
 $('#update-form').addEventListener('submit', async (event) => {
   event.preventDefault(); const form = event.currentTarget, file = $('#update-file').files[0], button = $('button[type="submit"]', form);
   const version = form.elements.version.value.trim(), type = form.elements.type.value, message = form.elements.message.value.trim();
   if (!file) return toast('Selecione um pacote ZIP.', 'error'); if (!message) return toast('Descreva o que mudou nesta atualização.', 'error');
-  if (!await confirmAction(`Aplicar ${file.name} como versão ${version} (${updateKinds[type].toLowerCase()})? Os arquivos autorizados serão substituídos após validação.`, { title: 'Aplicar atualização', confirm: 'Aplicar' })) return;
+  if (!await confirmAction(`Aplicar ${file.name} como versão ${version} (${updateKinds[type].toLowerCase()})? Os arquivos do pacote serão gravados após validação.`, { title: 'Aplicar atualização', confirm: 'Aplicar' })) return;
   button.disabled = true; $('#update-status').className = 'update-note'; $('#update-status').textContent = 'Validando e aplicando o pacote…';
   try {
-    const result = await api('/api/admin/updates', { method: 'POST', headers: { 'Content-Type': 'application/zip', 'X-Update-Filename': encodeURIComponent(file.name), 'X-Update-Version': version, 'X-Update-Type': type, 'X-Update-Message': encodeURIComponent(message) }, body: file });
-    form.reset(); $('#update-status').className = 'update-note ok'; $('#update-status').textContent = `Versão ${result.version} aplicada: ${result.files.join(', ')}. Cópia de segurança em ${result.backup}.${result.autoRestart ? ' O serviço está reiniciando sozinho; recarregue a página em alguns segundos.' : result.restartRequired ? ' Reinicie o serviço para carregar a atualização do servidor.' : ' Recarregue a página para usar a nova interface.'}`; toast(`Atualização ${result.version} aplicada.`, 'success'); await loadDeveloper();
+    const result = await uploadPackage(file, { 'X-Update-Filename': encodeURIComponent(file.name), 'X-Update-Version': version, 'X-Update-Type': type, 'X-Update-Message': encodeURIComponent(message) });
+    form.reset(); $('#update-status').className = 'update-note ok'; $('#update-status').textContent = `Versão ${result.version} aplicada (${result.files.length} ${result.files.length === 1 ? 'arquivo' : 'arquivos'}${result.created?.length ? `, ${result.created.length} novo${result.created.length > 1 ? 's' : ''}` : ''}). Cópia de segurança em ${result.backup}.${result.autoRestart ? ' O serviço está reiniciando sozinho; recarregue a página em alguns segundos.' : result.restartRequired ? ' Reinicie o serviço para carregar a atualização do servidor.' : ' Recarregue a página para usar a nova interface.'}`; toast(`Atualização ${result.version} aplicada.`, 'success'); await loadDeveloper();
   } catch (error) { $('#update-status').className = 'update-note bad'; $('#update-status').textContent = error.message; toast(error.message, 'error'); } finally { button.disabled = false; }
 });
 
+addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && !$('#summary-modal').hidden) $('#summary-close').click();
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's' && !$('#guide-screen').hidden && currentSession?.role !== 'admin') {
+    event.preventDefault(); if (currentGuideEditable) saveGuide().catch((error) => toast(error.message, 'error'));
+  }
+});
 addEventListener('popstate', () => currentSession && navigate(routeScreen[location.pathname] || (currentSession.role === 'admin' ? 'admin' : 'dashboard'), false));
 api('/api/session').then((session) => session?.username ? (session.mustChangePassword ? showPasswordView() : showApp(session)) : showLogin()).catch(showLogin);

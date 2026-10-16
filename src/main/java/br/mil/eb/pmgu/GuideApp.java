@@ -8,6 +8,8 @@ import org.apache.pdfbox.pdmodel.PDPageContentStream;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
 import org.apache.pdfbox.pdmodel.font.PDFont;
 import org.apache.pdfbox.pdmodel.font.PDType1Font;
+import org.apache.pdfbox.pdmodel.font.encoding.GlyphList;
+import org.apache.pdfbox.pdmodel.font.encoding.WinAnsiEncoding;
 import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
@@ -87,6 +89,7 @@ public final class GuideApp {
             check(db.login("admin", "admin123"), "login inicial");
             int number = db.save(new Guide(0, "OCS Teste", "Paciente Teste", "", "", new BigDecimal("100.00"), List.of(new GuideItem("Glosa de honorário médico", "Taxa teste", "Clínica médica", "CRM 12345", "Justificativa", new BigDecimal("10.00")))));
             check(number > 0 && db.load(number).items().get(0).crm().equals("CRM 12345") && db.providers().contains("OCS Teste") && db.specifications("Glosa de honorário médico").contains("Taxa teste") && pdfDocument(db.load(number)).length > 1000, "guia, OCS, especificação e PDF");
+            check(pdfText("Ação 10 → 5").equals("Ação 10 ? 5") && pdfText(money(BigDecimal.TEN)).equals(money(BigDecimal.TEN)), "texto do PDF fora do WinAnsi");
             db.delete(number); try { db.load(number); throw new IllegalStateException("guia não foi excluída"); } catch (IllegalArgumentException expected) { }
             System.out.println("Self-test OK");
         } catch (IOException error) { throw new IllegalStateException("Self-test falhou", error); }
@@ -154,12 +157,12 @@ public final class GuideApp {
         private void download(HttpExchange exchange) throws IOException {
             int number = positiveInt(query(exchange.getRequestURI()), "n"); if (number == 0) throw new IllegalArgumentException("Informe uma guia para exportar.");
             byte[] content = pdfDocument(database.load(number));
-            exchange.getResponseHeaders().set("Content-Type", "application/pdf"); exchange.getResponseHeaders().set("Content-Disposition", "attachment; filename=Relatorio de Glosa e Ajuste.pdf"); exchange.sendResponseHeaders(200, content.length); exchange.getResponseBody().write(content); exchange.close();
+            exchange.getResponseHeaders().set("Content-Type", "application/pdf"); exchange.getResponseHeaders().set("Content-Disposition", "attachment; filename=\"Relatorio de Glosa e Ajuste.pdf\""); exchange.sendResponseHeaders(200, content.length); exchange.getResponseBody().write(content); exchange.close();
         }
         private void print(HttpExchange exchange, String username) throws IOException {
             int number = positiveInt(query(exchange.getRequestURI()), "n"); if (number == 0) throw new IllegalArgumentException("Informe uma guia para imprimir.");
             byte[] content = pdfDocument(database.load(number));
-            exchange.getResponseHeaders().set("Content-Type", "application/pdf"); exchange.getResponseHeaders().set("Content-Disposition", "inline; filename=Relatorio de Glosa e Ajuste.pdf"); exchange.sendResponseHeaders(200, content.length); exchange.getResponseBody().write(content); exchange.close();
+            exchange.getResponseHeaders().set("Content-Type", "application/pdf"); exchange.getResponseHeaders().set("Content-Disposition", "inline; filename=\"Relatorio de Glosa e Ajuste.pdf\""); exchange.sendResponseHeaders(200, content.length); exchange.getResponseBody().write(content); exchange.close();
         }
         private void deleteGuide(HttpExchange exchange) throws IOException {
             int number = positiveInt(form(exchange), "number"); if (number == 0) throw new IllegalArgumentException("Guia inválida.");
@@ -228,7 +231,8 @@ public final class GuideApp {
     private static void pdfSections(PdfCanvas page, List<GuideItem> items, String prefix, String title, PDFont regular, PDFont bold) throws IOException { boolean heading = false; for (String module : MODULES) { List<GuideItem> section = items.stream().filter(i -> i.module().equals(module)).toList(); if (!module.startsWith(prefix) || section.isEmpty()) continue; if (!heading) { page.ensure(38); page.y -= 12; page.center(title, bold, 12); page.y -= 8; heading = true; } page.ensure(28); page.y -= 7; page.center(module.toUpperCase(PT_BR), bold, 9); boolean honorario = honorarios(module); BigDecimal total = section.stream().map(GuideItem::amount).reduce(BigDecimal.ZERO, BigDecimal::add); List<String[]> rows = new ArrayList<>(); for (int i = 0; i < section.size(); i++) { GuideItem item = section.get(i); rows.add(honorario ? new String[]{String.valueOf(i + 1), item.specification(), item.specialty(), item.crm(), item.justification(), money(item.amount())} : new String[]{String.valueOf(i + 1), item.specification(), item.justification(), money(item.amount())}); } rows.add(honorario ? new String[]{"", "", "", "", "Total de " + module.toUpperCase(PT_BR), money(total)} : new String[]{"", "", "Total de " + module.toUpperCase(PT_BR), money(total)}); pdfTable(page, honorario ? new String[]{"Item", "Especificação", "Especialidade", "CRM", "Justificativa", prefix.toUpperCase(PT_BR)} : new String[]{"Item", "Especificação", "Justificativa", prefix.toUpperCase(PT_BR)}, rows, honorario ? new float[]{25, 105, 80, 55, 170, 65} : new float[]{30, 150, 250, 70}, regular, bold); page.y -= 8; } }
     private static void pdfTable(PdfCanvas page, String[] headings, List<String[]> rows, float[] widths, PDFont regular, PDFont bold) throws IOException { List<String[]> all = new ArrayList<>(); all.add(headings); all.addAll(rows); for (int row = 0; row < all.size(); row++) { PDFont font = row == 0 || row == all.size() - 1 && rows.size() > 1 ? bold : regular; float size = row == 0 ? 8 : 8; List<List<String>> cells = new ArrayList<>(); int lines = 1; for (int col = 0; col < widths.length; col++) { List<String> wrapped = pdfWrap(all.get(row)[col], font, size, widths[col] - 6); cells.add(wrapped); lines = Math.max(lines, wrapped.size()); } float height = lines * 10 + 6; page.ensure(height); float x = 45; for (int col = 0; col < widths.length; col++) { page.stream.addRect(x, page.y - height, widths[col], height); page.stream.stroke(); float textY = page.y - 9; for (String line : cells.get(col)) { page.writeAt(line, x + 3, textY, font, size); textY -= 10; } x += widths[col]; } page.y -= height; } }
     private static List<String> pdfWrap(String value, PDFont font, float size, float width) throws IOException { List<String> lines = new ArrayList<>(); StringBuilder line = new StringBuilder(); for (String word : (value == null ? "" : value).split("\\s+")) { String candidate = line.isEmpty() ? word : line + " " + word; if (!line.isEmpty() && font.getStringWidth(pdfText(candidate)) / 1000 * size > width) { lines.add(line.toString()); line.setLength(0); } if (!line.isEmpty()) line.append(' '); line.append(word); } lines.add(line.toString()); return lines; }
-    private static String pdfText(String value) { return value == null ? "" : value.replace('–', '-').replace('—', '-').replace('“', '"').replace('”', '"'); }
+    // Fontes Type1 padrão só aceitam WinAnsi: caractere fora dela (→, ≥, emoji) derrubava o PDF inteiro.
+    private static String pdfText(String value) { String text = value == null ? "" : value.replace('–', '-').replace('—', '-').replace('“', '"').replace('”', '"'); StringBuilder safe = new StringBuilder(); text.codePoints().forEach(c -> safe.append(WinAnsiEncoding.INSTANCE.contains(GlyphList.getAdobeGlyphList().codePointToName(c)) ? Character.toString(c) : Character.isWhitespace(c) ? " " : "?")); return safe.toString(); }
     private static final class PdfCanvas implements AutoCloseable {
         private final PDDocument document; private PDPageContentStream stream; private float y;
         private PdfCanvas(PDDocument document) throws IOException { this.document = document; next(); }

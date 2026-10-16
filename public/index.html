@@ -60,7 +60,7 @@
         <button class="nav-link admin-only" data-screen="admin" hidden>Administração</button>
         <button class="nav-link admin-only" data-screen="developer" hidden>Desenvolvedor</button>
       </nav>
-      <div class="account"><span id="username"></span><span id="app-version" class="app-version">v2.0.0</span><button id="theme-toggle" class="text-button icon-button" type="button" aria-pressed="false" aria-label="Ativar modo escuro" title="Ativar modo escuro"><i id="theme-icon" class="bi bi-moon-stars" aria-hidden="true"></i></button><button id="logout" class="text-button with-label" type="button"><i class="bi bi-box-arrow-right" aria-hidden="true"></i>Sair</button></div>
+      <div class="account"><span id="username"></span><span id="app-version" class="app-version"></span><button id="theme-toggle" class="text-button icon-button" type="button" aria-pressed="false" aria-label="Ativar modo escuro" title="Ativar modo escuro"><i id="theme-icon" class="bi bi-moon-stars" aria-hidden="true"></i></button><button id="logout" class="text-button with-label" type="button"><i class="bi bi-box-arrow-right" aria-hidden="true"></i>Sair</button></div>
     </header>
 
     <main class="app-shell">
@@ -78,7 +78,7 @@
           <input id="guide-number" type="hidden">
           <section class="panel identity-panel">
             <div class="section-heading"><div><h2>Identificação</h2><p>Dados básicos da guia.</p></div></div>
-            <div class="form-grid identity-grid"><label>OCS<input id="ocs" autocomplete="off" required placeholder="Informe a organização de saúde"></label><label>Paciente<input id="patient" autocomplete="off" required placeholder="Nome completo do paciente"></label><label>Nº do atendimento<input id="attendance-number" autocomplete="off" placeholder="Ex.: 2.706.875"></label><label>Valor apresentado<span class="money-input"><span>R$</span><input id="billed" autocomplete="off" inputmode="decimal" value="0,00" required></span></label></div>
+            <div class="form-grid identity-grid"><label>OCS<input id="ocs" autocomplete="off" required placeholder="Informe a organização de saúde"></label><label>Paciente<input id="patient" autocomplete="off" required placeholder="Nome completo do paciente"></label><label>Nº da guia<input id="guide-code" autocomplete="off" maxlength="50" placeholder="Número da guia"></label><label>Nº do atendimento<input id="attendance-number" autocomplete="off" placeholder="Ex.: 2.706.875"><small id="attendance-warning" class="field-warning" role="status" hidden></small></label><label>Valor apresentado<span class="money-input"><span>R$</span><input id="billed" autocomplete="off" inputmode="decimal" value="0,00" required></span></label></div>
           </section>
           <section class="metrics" aria-live="polite"><article><span>Valor apresentado</span><strong id="billed-total">R$ 0,00</strong></article><article class="danger"><span>Glosa</span><strong id="glosa-total">R$ 0,00</strong></article><article class="warning"><span>Ajuste</span><strong id="ajuste-total">R$ 0,00</strong></article><article class="success"><span>Valor auditado</span><strong id="auditado-total">R$ 0,00</strong></article></section>
           <section class="panel items-panel">
@@ -92,7 +92,16 @@
         <section class="panel edit-history"><div class="section-heading"><div><h2>Histórico de edição</h2><p>Registros de criação, salvamento e finalização desta guia.</p></div></div><ol id="edit-history" class="history-list"><li class="muted">Salve a guia para registrar o histórico.</li></ol></section>
       </section>
 
-      <section id="recent-screen" class="screen" hidden><div class="page-title"><div><h1>Guias salvas</h1><p id="recent-description" class="muted">Abra, imprima ou exclua uma guia.</p></div></div><section class="panel table-wrap"><table><thead><tr><th>OCS</th><th>Paciente</th><th>Valor apresentado</th><th>Status</th><th>Finalizada em</th><th>Edição</th><th>Ações</th></tr></thead><tbody id="recent-guides"></tbody></table></section></section>
+      <section id="recent-screen" class="screen" hidden>
+        <div class="page-title"><div><h1>Guias salvas</h1><p class="muted">Encontre uma guia para abrir, duplicar, imprimir ou excluir.</p></div></div>
+        <form id="recent-filters" class="panel filter-bar" role="search" aria-label="Buscar guias">
+          <label class="filter-search"><span class="sr-only">Buscar</span><i class="bi bi-search" aria-hidden="true"></i><input type="search" name="q" autocomplete="off" placeholder="Buscar por OCS, paciente ou nº do atendimento"></label>
+          <div class="status-tabs" role="radiogroup" aria-label="Situação"><label><input type="radio" name="status" value="" checked><span>Todas</span></label><label><input type="radio" name="status" value="RASCUNHO"><span>Rascunhos</span></label><label><input type="radio" name="status" value="FINALIZADA"><span>Finalizadas</span></label></div>
+          <div class="filter-period"><label>De<input type="date" name="from"></label><label>Até<input type="date" name="to"></label></div>
+          <button type="reset" class="text-button">Limpar</button>
+        </form>
+        <section class="panel table-wrap"><table class="recent-table"><thead><tr><th>Nº</th><th>OCS</th><th>Paciente</th><th>Atendimento</th><th class="end">Apresentado</th><th>Situação</th><th class="end">Ações</th></tr></thead><tbody id="recent-guides"></tbody></table></section>
+      </section>
       <section id="admin-screen" class="screen" hidden>
         <div class="page-title"><div><h1>Administração do sistema</h1><p class="muted">Gerencie os acessos ao sistema.</p></div><p class="summary-chips" aria-live="polite"><span id="user-count-chip" class="chip">—</span><span id="pending-chip" class="chip warn" hidden></span></p></div>
         <div class="admin-layout">
@@ -109,7 +118,7 @@
           <article><span>Tempo ativo</span><strong id="ops-uptime">—</strong><small id="health-detail" class="muted">Aguardando consulta.</small></article>
         </div>
         <section class="panel update-panel">
-          <div class="section-heading"><div><h2>Aplicar pacote de atualização</h2><p>Informe a próxima versão, o tipo e o que mudou. O pacote .zip pode conter apenas os arquivos autorizados do sistema.</p></div></div>
+          <div class="section-heading"><div><h2>Aplicar pacote de atualização</h2><p>Informe a próxima versão, o tipo e o que mudou. O pacote .zip pode trazer arquivos novos ou alterados de <code>server.js</code>, <code>package.json</code>, <code>lib/</code>, <code>public/</code>, <code>scripts/</code> e <code>deploy/</code>; o banco (<code>data/</code>) e o <code>.env</code> nunca são tocados.</p></div></div>
           <form id="update-form" class="update-form">
             <label class="file-pick update-upload"><input id="update-file" name="package" type="file" accept=".zip,application/zip" required><span class="file-pick-button"><i class="bi bi-file-earmark-zip" aria-hidden="true"></i>Escolher pacote</span><span id="update-file-name" class="file-pick-name">Nenhum arquivo selecionado</span></label>
             <div class="update-fields">
@@ -120,6 +129,7 @@
               </fieldset>
             </div>
             <label>Descrição do que mudou<textarea id="update-message" name="message" required maxlength="500" placeholder="Ex.: Corrige o cálculo do valor auditado na impressão do relatório."></textarea><small class="field-hint"><span id="update-message-count">0</span>/500 caracteres. Aparece no histórico de atualizações.</small></label>
+            <div id="update-progress" class="update-progress" hidden><div class="update-progress-head"><span id="update-progress-step">Enviando o pacote…</span><strong id="update-progress-percent">0%</strong></div><progress id="update-progress-bar" max="100" value="0"></progress></div>
             <div class="update-actions"><p id="update-status" class="update-note" aria-live="polite">Antes de aplicar, o sistema valida o pacote e guarda uma cópia dos arquivos substituídos e do banco de dados.</p><button class="with-label" type="submit"><i class="bi bi-cloud-arrow-up" aria-hidden="true"></i>Aplicar atualização</button></div>
           </form>
         </section>

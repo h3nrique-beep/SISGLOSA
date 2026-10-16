@@ -300,26 +300,29 @@ td code { display: inline-block; margin: 1px 2px 1px 0; }
 ::-webkit-scrollbar-thumb { border: 2px solid var(--canvas); border-radius: 8px; background: #aebfc2; }
 
 /* Theme */
-:root[data-theme="dark"] { color-scheme: dark; --canvas: #172127; --surface: #202d34; --surface-subtle: #1a252b; --ink: #e5edef; --muted: #b7c4c8; --line: #3b4c53; --line-strong: #61747b; --navy: #d7e5e8; --blue: #5e91a0; --blue-hover: #79a8b5; --blue-soft: #2a4149; --green: #8fb9b5; --green-soft: #2a4444; --amber: #d4c18b; --amber-soft: #4a4433; --red: #e09aa3; --red-soft: #4d3037; --focus: #a8d4df; }
+:root[data-theme="dark"] { color-scheme: dark; --canvas: #0f1318; --surface: #161b22; --surface-subtle: #1b2129; --ink: #e6ebf0; --muted: #9ba7b4; --line: #2a323d; --line-strong: #3b4552; --navy: #e6ebf0; --blue: #2f72a3; --blue-hover: #3a82b6; --blue-soft: #1b2a39; --green: #5fb88f; --green-soft: #17291f; --amber: #d8a54c; --amber-soft: #2c2415; --red: #ef7d7d; --red-soft: #33191b; --focus: #5ea6d8; }
+/* Azul do botão é escuro para o texto branco; em texto sobre fundo escuro ele precisa clarear. */
+html[data-theme="dark"] .text-button:not(.danger-text, .row-actions a), html[data-theme="dark"] .item-mode.active { color: #86bce3; }
+html[data-theme="dark"] .text-button:not(.danger-text, .row-actions a):hover { color: #b0d4ef; }
 html[data-theme="dark"] .login-shell, html[data-theme="dark"] .preview-paper { background: var(--canvas); }
 html[data-theme="dark"] .topbar, html[data-theme="dark"] .panel, html[data-theme="dark"] .login-card, html[data-theme="dark"] .modal-card, html[data-theme="dark"] table, html[data-theme="dark"] input, html[data-theme="dark"] select, html[data-theme="dark"] textarea, html[data-theme="dark"] .money-input, html[data-theme="dark"] .custom-suggestions { background: var(--surface); }
 html[data-theme="dark"] th, html[data-theme="dark"] .module-guide, html[data-theme="dark"] .update-upload, html[data-theme="dark"] .health-endpoint, html[data-theme="dark"] .item-mode-switch { background: var(--surface-subtle); color: var(--ink); }
-html[data-theme="dark"] tbody tr:hover { background: #29383e; }
+html[data-theme="dark"] tbody tr:hover { background: #1d242d; }
 html[data-theme="dark"] .nav-link:hover, html[data-theme="dark"] .nav-link.active { background: var(--blue-soft); }
 html[data-theme="dark"] .metrics article, html[data-theme="dark"] .admin-metrics article, html[data-theme="dark"] .dashboard-metrics article { background: var(--surface); }
 html[data-theme="dark"] .guide-status.draft, html[data-theme="dark"] .status-badge.pending { color: var(--amber); }
 html[data-theme="dark"] .guide-status.finalized, html[data-theme="dark"] .role-badge, html[data-theme="dark"] .status-badge.ready, html[data-theme="dark"] .edit-window.open, html[data-theme="dark"] .saved-justification-standard { color: var(--green); }
 html[data-theme="dark"] .edit-window.closed, html[data-theme="dark"] .delete-saved-justification { color: var(--red); }
 html[data-theme="dark"] .edit-window small { color: inherit; }
-html[data-theme="dark"] .guide-lock-notice { border-color: #6b6143; color: var(--amber); }
-html[data-theme="dark"] .chip.warn { border-color: #6b6143; color: var(--amber); }
-html[data-theme="dark"] .chip.ok, html[data-theme="dark"] .update-note.ok { border-color: #3e6360; color: var(--green); }
-html[data-theme="dark"] .chip.bad, html[data-theme="dark"] .update-note.bad { border-color: #7a4a54; color: var(--red); }
+html[data-theme="dark"] .guide-lock-notice { border-color: #5a4721; color: var(--amber); }
+html[data-theme="dark"] .chip.warn { border-color: #5a4721; color: var(--amber); }
+html[data-theme="dark"] .chip.ok, html[data-theme="dark"] .update-note.ok { border-color: #2a5741; color: var(--green); }
+html[data-theme="dark"] .chip.bad, html[data-theme="dark"] .update-note.bad { border-color: #6a2e31; color: var(--red); }
 html[data-theme="dark"] code { color: var(--ink); }
 html[data-theme="dark"] .update-version strong { color: var(--ink); }
 html[data-theme="dark"] .kind-badge.corretiva { color: var(--amber); }
 html[data-theme="dark"] .kind-badge.evolutiva { color: var(--green); }
-html[data-theme="dark"] input::placeholder, html[data-theme="dark"] textarea::placeholder { color: #b7c4c8; }
+html[data-theme="dark"] input::placeholder, html[data-theme="dark"] textarea::placeholder { color: #7d8996; }
 html[data-theme="dark"] .document-model, html[data-theme="dark"] .document-model th, html[data-theme="dark"] .document-model td { background: #fff !important; color: #111 !important; }
 html[data-theme="dark"] .login-shell { color-scheme: light; --canvas: #f2f5f5; --surface: #ffffff; --surface-subtle: #f8faf9; --ink: #1f2f36; --muted: #52646c; --line: #cfd9da; --line-strong: #aebfc2; --blue: #365f71; --blue-hover: #284e60; --blue-soft: #e8f0f2; --green: #386668; --green-soft: #e7f0ee; --red: #984a55; --red-soft: #f8ecee; --focus: #78a7b3; background: var(--canvas); }
 
@@ -372,6 +375,41 @@ html[data-theme="dark"] .login-shell { color-scheme: light; --canvas: #f2f5f5; -
 .login-brand li { display: flex; align-items: center; gap: 10px; color: #eef4f5; }
 .login-brand li i { display: inline-grid; width: 30px; height: 30px; flex: none; place-items: center; border-radius: 8px; background: rgb(255 255 255 / 12%); font-size: 15px; }
 .login-credit { margin: 0; color: var(--muted); font-size: 12px; text-align: center; }
+/* Registros: busca, situação e totais */
+.filter-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; padding: 14px 16px; }
+.filter-search { position: relative; flex: 1 1 300px; flex-direction: row; }
+.filter-search i { position: absolute; top: 50%; left: 12px; color: var(--muted); transform: translateY(-50%); pointer-events: none; }
+.filter-search input { padding-left: 36px; }
+.status-tabs { display: flex; gap: 4px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-subtle); padding: 3px; }
+.status-tabs label { flex-direction: row; cursor: pointer; }
+.status-tabs input { position: absolute; width: 1px; min-height: 0; height: 1px; opacity: 0; }
+.status-tabs span { border-radius: 6px; color: var(--muted); padding: 7px 12px; font-size: 13px; font-weight: 700; white-space: nowrap; }
+.status-tabs input:checked + span { background: var(--surface); color: var(--ink); box-shadow: 0 0 0 1px var(--line); }
+.status-tabs input:focus-visible + span { outline: 3px solid var(--focus); outline-offset: 1px; }
+.filter-period { display: flex; gap: 8px; }
+.filter-period label { flex-direction: row; align-items: center; gap: 6px; font-weight: 600; color: var(--muted); }
+.filter-period input { width: 150px; min-height: 38px; padding: 6px 9px; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.recent-table th.end { text-align: right; }
+.recent-table td.money { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.recent-table .situation { white-space: nowrap; }
+.situation-note { display: block; margin-top: 3px; color: var(--muted); font-size: 11px; }
+.recent-table .row-actions { justify-content: flex-end; align-items: center; gap: 4px; }
+.recent-table .icon-button { width: 34px; min-height: 34px; height: 34px; border-color: transparent; background: transparent; color: var(--muted); padding: 0; }
+.recent-table .icon-button:hover { border-color: var(--line); background: var(--surface-subtle); color: var(--ink); }
+.recent-table .icon-button.danger-text:hover { background: var(--red-soft); color: var(--red); }
+.field-warning { border: 1px solid #d8cfad; border-radius: 6px; background: var(--amber-soft); color: #584f32; padding: 6px 9px; font-size: 12px; font-weight: 600; }
+.update-progress { display: grid; gap: 6px; }
+.update-progress-head { display: flex; justify-content: space-between; color: var(--muted); font-size: 13px; }
+.update-progress-head strong { color: var(--ink); font-variant-numeric: tabular-nums; }
+.update-progress progress { width: 100%; height: 10px; accent-color: var(--blue); }
+html[data-theme="dark"] .field-warning { border-color: #5a4721; color: var(--amber); }
+@media (max-width: 540px) {
+  .filter-period { width: 100%; }
+  .filter-period label { flex: 1 1 0; min-width: 0; }
+  .filter-period input { flex: 1 1 0; width: auto; min-width: 0; }
+}
+
 @media (max-width: 900px) {
   .dashboard-values { grid-template-columns: 1fr 1fr; }
   .login-split { grid-template-columns: minmax(0, 1fr); width: min(100%, 456px); }
