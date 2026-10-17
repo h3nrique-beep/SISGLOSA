@@ -117,24 +117,44 @@
           <article><span>Pacotes aplicados</span><strong id="ops-updates">—</strong><small class="muted">com cópia de segurança</small></article>
           <article><span>Tempo ativo</span><strong id="ops-uptime">—</strong><small id="health-detail" class="muted">Aguardando consulta.</small></article>
         </div>
-        <section class="panel update-panel">
-          <div class="section-heading"><div><h2>Aplicar pacote de atualização</h2><p>Informe a próxima versão, o tipo e o que mudou. O pacote .zip pode trazer arquivos novos ou alterados de <code>server.js</code>, <code>package.json</code>, <code>lib/</code>, <code>public/</code>, <code>scripts/</code> e <code>deploy/</code>; o banco (<code>data/</code>) e o <code>.env</code> nunca são tocados.</p></div></div>
+        <nav class="dev-tabs" role="tablist" aria-label="Seções do desenvolvedor"><button type="button" class="dev-tab" role="tab" data-tab="saude"><i class="bi bi-activity" aria-hidden="true"></i>Saúde</button><button type="button" class="dev-tab" role="tab" data-tab="backups"><i class="bi bi-database" aria-hidden="true"></i>Backups</button><button type="button" class="dev-tab" role="tab" data-tab="atualizacoes"><i class="bi bi-cloud-arrow-up" aria-hidden="true"></i>Atualizações</button><button type="button" class="dev-tab" role="tab" data-tab="ambiente"><i class="bi bi-hdd-network" aria-hidden="true"></i>Ambiente</button></nav>
+        <section class="panel monitor-panel" data-dev-tab="saude" role="tabpanel">
+          <div class="section-heading"><div><h2>Saúde do sistema</h2><p>Recursos a cada minuto; código, banco e backups a cada hora. Os alertas fecham sozinhos quando o problema some.</p></div><div class="heading-actions"><span id="monitor-chip" class="chip"><span class="status-dot" aria-hidden="true"></span><span id="monitor-health">Verificando…</span></span><button id="monitor-check" class="secondary with-label" type="button"><i class="bi bi-arrow-repeat" aria-hidden="true"></i>Verificar agora</button></div></div>
+          <div class="metrics monitor-metrics">
+            <article id="monitor-disk-card"><span>Disco livre</span><strong id="monitor-disk">—</strong><svg id="monitor-disk-chart" class="sparkline" viewBox="0 0 100 24" preserveAspectRatio="none" aria-hidden="true"></svg></article>
+            <article id="monitor-ram-card"><span>Memória em uso</span><strong id="monitor-ram">—</strong><svg id="monitor-ram-chart" class="sparkline" viewBox="0 0 100 24" preserveAspectRatio="none" aria-hidden="true"></svg></article>
+            <article><span>Tamanho do banco</span><strong id="monitor-db">—</strong><small class="muted">últimas 48 h no gráfico</small></article>
+            <article><span>Integridade do código</span><strong id="monitor-snapshot">—</strong><small id="monitor-checked" class="muted">—</small></article>
+          </div>
+          <h3 class="monitor-subtitle">Alertas abertos</h3>
+          <ul id="monitor-alerts" class="alert-list"></ul>
+          <div id="monitor-resolved-wrap" hidden><h3 class="monitor-subtitle">Resolvidos hoje</h3><ul id="monitor-resolved" class="alert-list resolved"></ul></div>
+          <div class="update-actions"><p class="update-note">Mudou o código à mão (fora de um pacote)? Depois de conferir, aceite o estado atual como nova referência.</p><button id="monitor-accept" class="secondary with-label" type="button"><i class="bi bi-shield-check" aria-hidden="true"></i>Aceitar estado atual</button></div>
+        </section>
+        <section class="panel backup-panel" data-dev-tab="backups" role="tabpanel">
+          <div class="section-heading"><div><h2>Backups do banco</h2><p>Automático a cada 24 h (mantido por 90 dias), antes de cada atualização e antes de cada restauração. Cada cópia é conferida ao ser gerada.</p></div><div class="heading-actions"><button id="backup-create" class="with-label" type="button"><i class="bi bi-database-add" aria-hidden="true"></i>Gerar agora</button></div></div>
+          <p id="backup-warning" class="update-note bad" hidden></p>
+          <div class="table-wrap"><table class="backup-table"><thead><tr><th>Data</th><th>Tipo</th><th>Tamanho</th><th>Conteúdo</th><th>Verificação</th><th class="end">Ações</th></tr></thead><tbody id="backup-list"><tr><td colspan="6" class="empty-cell">Carregando…</td></tr></tbody></table></div>
+          <details class="backup-history"><summary>Histórico de backups (gerados, baixados e restaurados)</summary><ul id="backup-history" class="history-list"></ul></details>
+        </section>
+        <section class="panel update-panel" data-dev-tab="atualizacoes" role="tabpanel">
+          <div class="section-heading"><div><h2>Aplicar pacote de atualização</h2><p>Versão e descrição vêm do próprio pacote (gerado pelo <code>npm run pacote</code>); uma versão menor que a ativa reverte o sistema. O pacote .zip pode trazer arquivos novos ou alterados de <code>server.js</code>, <code>package.json</code>, <code>lib/</code>, <code>public/</code>, <code>scripts/</code> e <code>deploy/</code>; o banco (<code>data/</code>) e o <code>.env</code> nunca são tocados.</p></div></div>
           <form id="update-form" class="update-form">
             <label class="file-pick update-upload"><input id="update-file" name="package" type="file" accept=".zip,application/zip" required><span class="file-pick-button"><i class="bi bi-file-earmark-zip" aria-hidden="true"></i>Escolher pacote</span><span id="update-file-name" class="file-pick-name">Nenhum arquivo selecionado</span></label>
             <div class="update-fields">
-              <label>Próxima versão<input id="update-next-version" name="version" required pattern="\d+\.\d+\.\d+" inputmode="decimal" autocomplete="off" placeholder="x.y.z"><small id="update-version-hint" class="field-hint">Sugerida a partir da versão ativa.</small></label>
+              <label>Próxima versão<input id="update-next-version" name="version" pattern="\d+\.\d+\.\d+" inputmode="decimal" autocomplete="off" placeholder="x.y.z"><small id="update-version-hint" class="field-hint">Usada só se o pacote não trouxer versão.</small></label>
               <fieldset class="kind-switch"><legend>Tipo de atualização</legend>
                 <label class="kind-option"><input type="radio" name="type" value="corretiva" checked><span><strong>Corretiva</strong><small>Corrige falhas. Avança o último número (x.y.<b>Z</b>).</small></span></label>
                 <label class="kind-option"><input type="radio" name="type" value="evolutiva"><span><strong>Evolutiva</strong><small>Nova função ou melhoria. Avança o número do meio (x.<b>Y</b>.0).</small></span></label>
               </fieldset>
             </div>
-            <label>Descrição do que mudou<textarea id="update-message" name="message" required maxlength="500" placeholder="Ex.: Corrige o cálculo do valor auditado na impressão do relatório."></textarea><small class="field-hint"><span id="update-message-count">0</span>/500 caracteres. Aparece no histórico de atualizações.</small></label>
+            <label>Descrição do que mudou<textarea id="update-message" name="message" rows="2" maxlength="500" placeholder="Se o pacote já traz a descrição, basta um ponto (.)"></textarea><small class="field-hint"><span id="update-message-count">0</span>/500 caracteres. A descrição do pacote tem prioridade e aparece no histórico.</small></label>
             <div id="update-progress" class="update-progress" hidden><div class="update-progress-head"><span id="update-progress-step">Enviando o pacote…</span><strong id="update-progress-percent">0%</strong></div><progress id="update-progress-bar" max="100" value="0"></progress></div>
             <div class="update-actions"><p id="update-status" class="update-note" aria-live="polite">Antes de aplicar, o sistema valida o pacote e guarda uma cópia dos arquivos substituídos e do banco de dados.</p><button class="with-label" type="submit"><i class="bi bi-cloud-arrow-up" aria-hidden="true"></i>Aplicar atualização</button></div>
           </form>
         </section>
-        <section class="panel"><div class="section-heading"><div><h2>Histórico de atualizações</h2><p>Últimos 20 pacotes aplicados.</p></div></div><div class="table-wrap"><table class="history-table"><thead><tr><th>Versão</th><th>Tipo</th><th>O que mudou</th><th>Aplicado por</th><th>Arquivos</th><th>Data</th></tr></thead><tbody id="update-history"><tr><td colspan="6" class="empty-cell">Nenhuma atualização aplicada.</td></tr></tbody></table></div></section>
-        <section class="panel"><div class="section-heading"><div><h2>Ambiente e implantação</h2><p>Proxmox com Nginx e systemd. Roteiro em <code>deploy/proxmox/README.md</code>.</p></div></div>
+        <section class="panel" data-dev-tab="atualizacoes" role="tabpanel"><div class="section-heading"><div><h2>Histórico de atualizações</h2><p>Últimos 20 pacotes aplicados.</p></div></div><div class="table-wrap"><table class="history-table"><thead><tr><th>Versão</th><th>Tipo</th><th>O que mudou</th><th>Aplicado por</th><th>Arquivos</th><th>Data</th></tr></thead><tbody id="update-history"><tr><td colspan="6" class="empty-cell">Nenhuma atualização aplicada.</td></tr></tbody></table></div></section>
+        <section class="panel" data-dev-tab="ambiente" role="tabpanel"><div class="section-heading"><div><h2>Ambiente e implantação</h2><p>Proxmox com Nginx e systemd. Roteiro em <code>deploy/proxmox/README.md</code>.</p></div></div>
           <dl class="facts facts-grid"><div><dt>Banco de dados</dt><dd id="ops-database">—</dd></div><div><dt>Node.js</dt><dd id="ops-node">—</dd></div><div><dt>Endereço do serviço</dt><dd><code>127.0.0.1:8080</code> <span class="muted">publicado pelo Nginx</span></dd></div><div><dt>Monitoramento</dt><dd><code>GET /health</code></dd></div></dl></section>
       </section>
     </main>
@@ -145,6 +165,13 @@
       <h2 id="modal-title">Confirmar ação</h2>
       <p id="modal-message" class="muted"></p>
       <div class="modal-actions"><button id="modal-cancel" class="secondary">Cancelar</button><button id="modal-confirm">Confirmar</button></div>
+    </section>
+  </div>
+  <div id="prompt-modal" class="modal-backdrop" hidden>
+    <section class="modal-card item-modal-card" role="dialog" aria-modal="true" aria-labelledby="prompt-title" aria-describedby="prompt-message">
+      <h2 id="prompt-title">Confirmar</h2>
+      <p id="prompt-message" class="muted"></p>
+      <form id="prompt-form" class="item-form"><div id="prompt-fields" class="prompt-fields"></div><p id="prompt-error" class="error" hidden></p><div class="modal-actions"><button id="prompt-cancel" type="button" class="secondary">Cancelar</button><button id="prompt-confirm" type="submit">Confirmar</button></div></form>
     </section>
   </div>
   <div id="item-modal" class="modal-backdrop" hidden>

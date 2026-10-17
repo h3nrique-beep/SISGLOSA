@@ -12,3 +12,5 @@ tools/
 .impeccable/hook.cache.json
 # cache do npm install feito pelo painel de atualizações (home do usuário sisglosa é /opt/sisglosa)
 .npm/
+# Versão PHP: repositório próprio (github.com/h3nrique-beep/SISGLOSA-PHP)
+SISGLOSA-PHP/

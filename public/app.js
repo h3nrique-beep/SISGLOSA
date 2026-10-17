@@ -52,7 +52,7 @@ async function api(url, options = {}) {
 }
 function showLogin() { currentSession = null; history.replaceState(null, '', '/login'); $('#app-view').hidden = true; $('#app-view').style.display = 'none'; $('#password-view').hidden = true; $('#login-view').hidden = false; $('#login-view').style.display = 'grid'; document.body.classList.remove('loading'); }
 function showPasswordView() { $('#login-view').hidden = true; $('#login-view').style.display = 'none'; $('#app-view').hidden = true; $('#password-view').hidden = false; $('#password-view').style.display = 'grid'; document.body.classList.remove('loading'); $('#password-form').reset(); $('#password-form input').focus(); }
-function showApp(session) { currentSession = session; const admin = session.role === 'admin'; const screen = routeScreen[location.pathname]; const params = new URLSearchParams(location.search), requestedGuide = Number(params.get('guia')), freshGuide = params.has('nova') || requestedGuide > 0; $('#username').textContent = session.username; if (session.version) $('#app-version').textContent = `v${session.version}`; document.querySelectorAll('.admin-only').forEach((item) => { item.hidden = !admin; }); document.querySelectorAll('.guide-only').forEach((item) => { item.hidden = admin; }); $('#login-view').hidden = true; $('#login-view').style.display = 'none'; $('#password-view').hidden = true; $('#app-view').hidden = false; $('#app-view').style.display = 'flex'; document.body.classList.remove('loading'); if (admin) return navigate(screen === 'developer' ? 'developer' : 'admin', !['admin', 'developer'].includes(screen)); resetGuide(); if (!freshGuide) restoreDraft(); totals(); loadOcs(); loadModules(); loadJustifications(); navigate(['dashboard', 'guide', 'recent'].includes(screen) ? screen : 'dashboard', !['dashboard', 'guide', 'recent'].includes(screen)); if (screen === 'guide' && Number.isInteger(requestedGuide) && requestedGuide > 0) openGuide(requestedGuide); }
+function showApp(session) { currentSession = session; const admin = session.role === 'admin'; const screen = routeScreen[location.pathname]; const params = new URLSearchParams(location.search), requestedGuide = Number(params.get('guia')), freshGuide = params.has('nova') || requestedGuide > 0; $('#username').textContent = session.username; if (session.version) $('#app-version').textContent = `v${session.version}`; document.querySelectorAll('.admin-only').forEach((item) => { item.hidden = !admin; }); document.querySelectorAll('.guide-only').forEach((item) => { item.hidden = admin; }); $('#login-view').hidden = true; $('#login-view').style.display = 'none'; $('#password-view').hidden = true; $('#app-view').hidden = false; $('#app-view').style.display = 'flex'; document.body.classList.remove('loading'); if (admin) { api('/api/admin/monitor').then((data) => markDeveloperNav(data.health)).catch(() => {}); return navigate(screen === 'developer' ? 'developer' : 'admin', !['admin', 'developer'].includes(screen)); } resetGuide(); if (!freshGuide) restoreDraft(); totals(); loadOcs(); loadModules(); loadJustifications(); navigate(['dashboard', 'guide', 'recent'].includes(screen) ? screen : 'dashboard', !['dashboard', 'guide', 'recent'].includes(screen)); if (screen === 'guide' && Number.isInteger(requestedGuide) && requestedGuide > 0) openGuide(requestedGuide); }
 
 function moduleOptions(selected) {
   return ['Ajuste', 'Glosa'].map((prefix) => `<optgroup label="${prefix}s">${modules.filter((module) => module.startsWith(prefix)).map((module) => `<option value="${escape(module)}" ${module === selected ? 'selected' : ''}>${escape(module)}</option>`).join('')}</optgroup>`).join('');
@@ -234,7 +234,7 @@ const updateKinds = { corretiva: 'Corretiva', evolutiva: 'Evolutiva', seguranca:
 let activeVersion = '';
 // Corretiva avança x.y.Z; evolutiva avança x.Y.0.
 function nextVersion(version, type) { const [major = 0, minor = 0, patch = 0] = String(version).split(/[-+]/)[0].split('.').map((part) => Number(part) || 0); return type === 'evolutiva' ? `${major}.${minor + 1}.0` : `${major}.${minor}.${patch + 1}`; }
-function suggestVersion() { const input = $('#update-next-version'); if (!activeVersion || input.dataset.edited) return; input.value = nextVersion(activeVersion, $('#update-form').elements.type.value); $('#update-version-hint').textContent = `Sugerida a partir da v${activeVersion}. Pode ser ajustada.`; }
+function suggestVersion() { const input = $('#update-next-version'); if (!activeVersion || input.dataset.edited) return; input.value = nextVersion(activeVersion, $('#update-form').elements.type.value); $('#update-version-hint').textContent = `Usada só se o pacote não trouxer versão (sugerida a partir da v${activeVersion}).`; }
 function renderUpdates(system, history) {
   activeVersion = system.version; $('#update-version').textContent = `v${system.version}`; $('#app-version').textContent = `v${system.version}`; $('#ops-updates').textContent = system.updates; suggestVersion();
   const last = history[0]; $('#ops-last-message').textContent = last?.message || 'Versão de instalação.'; $('#ops-last-kind').textContent = last ? updateKinds[last.kind] || last.kind : '—'; $('#ops-last-date').textContent = last ? dateTime(last.created_at) : 'Nenhum pacote aplicado.';
@@ -244,7 +244,101 @@ function renderUpdates(system, history) {
 }
 function duration(seconds) { const days = Math.floor(seconds / 86400), hours = Math.floor(seconds % 86400 / 3600), minutes = Math.floor(seconds % 3600 / 60); return days ? `${days} d ${hours} h` : hours ? `${hours} h ${minutes} min` : `${Math.max(1, minutes)} min`; }
 function setHealth(online, detail) { $('#health-status').textContent = online ? 'Online' : 'Indisponível'; $('#health-chip').className = `chip ${online ? 'ok' : 'bad'}`; $('#health-detail').textContent = detail; }
+// Pede campos (senha, frase-senha, confirmação) num diálogo; resolve com os valores, ou null se cancelar.
+function promptFields(title, message, fields, { confirm = 'Confirmar', danger = false } = {}) {
+  return new Promise((resolve) => {
+    const modal = $('#prompt-modal'), form = $('#prompt-form'), box = $('#prompt-fields');
+    $('#prompt-title').textContent = title; $('#prompt-message').textContent = message; $('#prompt-confirm').textContent = confirm; $('#prompt-confirm').classList.toggle('danger', danger);
+    box.replaceChildren(...fields.map((field) => { const label = document.createElement('label'); label.textContent = field.label; const input = Object.assign(document.createElement('input'), { name: field.name, type: field.type || 'text', required: true, autocomplete: field.autocomplete || 'off', placeholder: field.placeholder || '' }); if (field.minLength) input.minLength = field.minLength; label.append(input); return label; }));
+    const close = (value) => { modal.hidden = true; form.onsubmit = $('#prompt-cancel').onclick = modal.onclick = null; document.removeEventListener('keydown', keydown); form.reset(); resolve(value); };
+    const keydown = (event) => { if (event.key === 'Escape') close(null); };
+    form.onsubmit = (event) => { event.preventDefault(); close(Object.fromEntries(new FormData(form))); };
+    $('#prompt-cancel').onclick = () => close(null); modal.onclick = (event) => { if (event.target === modal) close(null); }; document.addEventListener('keydown', keydown);
+    modal.hidden = false; $('input', box)?.focus();
+  });
+}
+const passwordField = { name: 'password', label: 'Sua senha', type: 'password', autocomplete: 'current-password' };
+const msDate = (ms) => ms ? new Date(Number(ms)).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : '—';
+const percent = (value) => value === null || value === undefined ? '—' : `${value.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`;
+const fileSize = (bytes) => bytes >= 1048576 ? `${(bytes / 1048576).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
+const severityLabels = { CRITICO: 'Crítico', ALTO: 'Alto', MEDIO: 'Médio', INFO: 'Informativo' };
+const healthLabels = { verde: ['ok', 'Tudo normal'], amarelo: ['warn', 'Atenção'], vermelho: ['bad', 'Problema crítico'] };
+const backupKinds = { manual: 'Manual', auto: 'Automático', 'pre-update': 'Antes de atualização', 'pre-restore': 'Antes de restauração' };
+const backupActions = { criado: 'gerado', baixado: 'baixado', restaurado: 'restaurado' };
+// Ponto no menu Desenvolvedor quando há alerta aberto: o administrador vê sem abrir a tela.
+function markDeveloperNav(health) { const tab = $('.dev-tab[data-tab="saude"]'); tab.classList.toggle('has-alert', health === 'amarelo'); tab.classList.toggle('has-critical', health === 'vermelho'); const link = $('.nav-link[data-screen="developer"]'); link.classList.toggle('has-alert', health === 'amarelo'); link.classList.toggle('has-critical', health === 'vermelho'); }
+function sparkline(svg, values) {
+  const points = values.filter((value) => value !== null && value !== undefined);
+  if (points.length < 2) return svg.replaceChildren();
+  const step = 100 / (points.length - 1);
+  svg.innerHTML = `<polyline points="${points.map((value, index) => `${(index * step).toFixed(2)},${(23 - Math.min(100, value) / 100 * 22).toFixed(2)}`).join(' ')}"/>`;
+}
+function alertItem(alert, resolved = false) {
+  const item = document.createElement('li'), severity = alert.severity.toLowerCase(); item.className = `alert-item ${severity}`;
+  item.innerHTML = `<span class="severity-badge ${escape(severity)}">${escape(severityLabels[alert.severity] || alert.severity)}</span><div><strong>${escape(alert.title)}</strong>${!resolved && alert.detail ? `<p>${escape(alert.detail)}</p>` : ''}<small class="muted">${resolved ? `Aberto ${msDate(alert.opened_at)} · resolvido ${msDate(alert.resolved_at)}` : `Desde ${msDate(alert.opened_at)} · visto ${msDate(alert.seen_at)}`}</small></div>`;
+  return item;
+}
+function renderMonitor(data) {
+  const [tone, label] = healthLabels[data.health] || healthLabels.amarelo; $('#monitor-chip').className = `chip ${tone}`; $('#monitor-health').textContent = label; markDeveloperNav(data.health);
+  const latest = data.latest || {};
+  $('#monitor-disk').textContent = percent(latest.disk); $('#monitor-disk-card').className = latest.disk < 10 ? 'danger' : '';
+  $('#monitor-ram').textContent = percent(latest.ram); $('#monitor-ram-card').className = latest.ram > 90 ? 'warning' : '';
+  sparkline($('#monitor-disk-chart'), data.samples.map((sample) => sample.disk)); sparkline($('#monitor-ram-chart'), data.samples.map((sample) => sample.ram));
+  $('#monitor-db').textContent = latest.dbKb === null || latest.dbKb === undefined ? '—' : fileSize(latest.dbKb * 1024);
+  const changed = data.open.some((alert) => alert.alert_key === 'arquivos.alterados');
+  $('#monitor-snapshot').textContent = changed ? 'Alterado' : 'Íntegro'; $('#monitor-snapshot').parentElement.className = changed ? 'danger' : 'success';
+  $('#monitor-checked').textContent = `Referência de ${msDate(data.snapshotAt)}${data.snapshotBy ? ` (${data.snapshotBy})` : ''} · conferido ${msDate(data.checkedAt)}`;
+  const list = $('#monitor-alerts'); list.replaceChildren(...data.open.map((alert) => alertItem(alert)));
+  if (!data.open.length) list.innerHTML = '<li class="alert-empty"><i class="bi bi-check-circle" aria-hidden="true"></i> Nenhum alerta aberto.</li>';
+  $('#monitor-resolved-wrap').hidden = !data.resolved.length; $('#monitor-resolved').replaceChildren(...data.resolved.map((alert) => alertItem(alert, true)));
+}
+async function loadMonitor() { renderMonitor(await api('/api/admin/monitor')); }
+function renderBackups(data) {
+  $('#backup-create').disabled = !data.enabled;
+  const latest = data.backups[0], warning = !data.enabled ? 'Com MySQL/MariaDB, o backup é feito pelo script deploy/proxmox/backup-sisglosa.sh e não aparece aqui.' : !latest ? 'Nenhum backup gerado ainda.' : Date.now() - latest.created_at > 26 * 3600 * 1000 ? `O último backup é de ${msDate(latest.created_at)}: o automático deveria rodar a cada 24 h.` : '';
+  $('#backup-warning').hidden = !warning; $('#backup-warning').textContent = warning;
+  const target = $('#backup-list'); target.replaceChildren();
+  if (!data.backups.length) emptyRow(target, 6, data.enabled ? 'Nenhum backup gerado ainda.' : 'Backups do MySQL ficam fora do painel.');
+  data.backups.forEach((backup) => {
+    const row = document.createElement('tr');
+    row.innerHTML = `<td><strong>${msDate(backup.created_at)}</strong><br><small class="muted">${escape(backup.created_by || '—')}</small></td><td><span class="kind-badge ${escape(backup.kind)}">${escape(backupKinds[backup.kind] || backup.kind)}</span></td><td>${fileSize(backup.size)}</td><td>${backup.guides ?? '—'} ${backup.guides === 1 ? 'guia' : 'guias'} · ${backup.users ?? '—'} ${backup.users === 1 ? 'usuário' : 'usuários'}</td><td><span class="status-badge ${backup.ok ? 'ready' : 'pending'}" title="${escape(backup.integrity || '')}">${backup.ok ? 'Íntegro' : 'Falhou'}</span></td><td class="end"><div class="row-actions"><button class="text-button download-backup" type="button">Baixar</button>${backup.ok ? '<button class="text-button restore-backup danger-text" type="button">Restaurar</button>' : ''}</div></td>`;
+    $('.download-backup', row).onclick = () => downloadBackup(backup.name).catch((error) => toast(error.message, 'error'));
+    if (backup.ok) $('.restore-backup', row).onclick = () => restoreBackup(backup).catch((error) => toast(error.message, 'error'));
+    target.append(row);
+  });
+  const history = $('#backup-history'); history.replaceChildren(...data.history.map((entry) => { const item = document.createElement('li'); item.textContent = `${msDate(entry.at)} — ${entry.name || ''} ${backupActions[entry.action] || entry.action} por ${entry.username}${entry.ip ? ` (${entry.ip})` : ''}${entry.ok === false ? ' — verificação falhou' : ''}`; return item; }));
+  if (!data.history.length) history.innerHTML = '<li class="muted">Sem registros.</li>';
+}
+async function loadBackups() { renderBackups(await api('/api/admin/backups')); }
+async function downloadBackup(name) {
+  const values = await promptFields('Baixar backup', 'O arquivo sai cifrado com a frase-senha abaixo. Guarde-a: sem ela o arquivo não abre (node scripts/abrir-backup.js).', [passwordField, { name: 'passphrase', label: 'Frase-senha do arquivo (mínimo 8 caracteres)', type: 'password', minLength: 8, autocomplete: 'new-password' }], { confirm: 'Baixar' });
+  if (!values) return;
+  const response = await fetch('/api/admin/backups/download', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, ...values }) });
+  if (response.status === 401) { showLogin(); throw new Error('Sessão expirada.'); }
+  if (!response.ok) throw new Error((await response.json().catch(() => null))?.error || 'Não foi possível baixar o backup.');
+  const url = URL.createObjectURL(await response.blob()), link = Object.assign(document.createElement('a'), { href: url, download: `${name}.sgbk` });
+  document.body.append(link); link.click(); link.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+  toast('Backup baixado (cifrado).', 'success'); loadBackups().catch(() => {});
+}
+async function restoreBackup(backup) {
+  const values = await promptFields('Restaurar backup', `O banco volta ao estado de ${msDate(backup.created_at)} (${backup.guides ?? '—'} guias). Tudo o que foi lançado depois será perdido, contas e senhas voltam às daquela data e todos os usuários serão desconectados. Antes, o banco atual é guardado como "Antes de restauração".`, [{ name: 'confirmation', label: 'Digite RESTAURAR para confirmar', placeholder: 'RESTAURAR' }, passwordField], { confirm: 'Restaurar', danger: true });
+  if (!values) return;
+  const result = await api('/api/admin/backups/restore', { method: 'POST', body: JSON.stringify({ name: backup.name, ...values }) });
+  toast(`Banco restaurado. O anterior foi guardado em ${result.safety}. Entre novamente.`, 'success'); setTimeout(showLogin, 2500);
+}
+// Abas do Desenvolvedor: uma seção por vez, sem rolar a tela. A aba escolhida fica lembrada neste navegador.
+const devTabKey = 'sisglosa-dev-tab';
+function showDevTab(tab) {
+  if (!document.querySelector(`.dev-tab[data-tab="${tab}"]`)) tab = 'saude';
+  document.querySelectorAll('.dev-tab').forEach((button) => { const active = button.dataset.tab === tab; button.classList.toggle('active', active); button.setAttribute('aria-selected', String(active)); });
+  document.querySelectorAll('[data-dev-tab]').forEach((panel) => { panel.hidden = panel.dataset.devTab !== tab; });
+  try { localStorage.setItem(devTabKey, tab); } catch {}
+}
+document.querySelectorAll('.dev-tab').forEach((button) => { button.onclick = () => showDevTab(button.dataset.tab); });
+let savedDevTab = 'saude'; try { savedDevTab = localStorage.getItem(devTabKey) || 'saude'; } catch {}
+showDevTab(savedDevTab);
 async function loadDeveloper() {
+  loadMonitor().catch((error) => toast(error.message, 'error')); loadBackups().catch((error) => toast(error.message, 'error'));
   try { const health = await api('/health'); setHealth(health.status === 'ok', health.status === 'ok' ? 'Serviço respondendo normalmente.' : 'Verifique o serviço.'); } catch { setHealth(false, 'Não foi possível consultar o serviço.'); }
   try { const [system, history] = await Promise.all([api('/api/admin/system'), api('/api/admin/updates')]); renderUpdates(system, history); $('#ops-database').textContent = system.database; $('#ops-node').textContent = system.node; $('#ops-uptime').textContent = duration(system.uptime); } catch (error) { toast(error.message, 'error'); }
 }
@@ -345,12 +439,12 @@ function uploadPackage(file, headers) {
 $('#update-form').addEventListener('submit', async (event) => {
   event.preventDefault(); const form = event.currentTarget, file = $('#update-file').files[0], button = $('button[type="submit"]', form);
   const version = form.elements.version.value.trim(), type = form.elements.type.value, message = form.elements.message.value.trim();
-  if (!file) return toast('Selecione um pacote ZIP.', 'error'); if (!message) return toast('Descreva o que mudou nesta atualização.', 'error');
-  if (!await confirmAction(`Aplicar ${file.name} como versão ${version} (${updateKinds[type].toLowerCase()})? Os arquivos do pacote serão gravados após validação.`, { title: 'Aplicar atualização', confirm: 'Aplicar' })) return;
+  if (!file) return toast('Selecione um pacote ZIP.', 'error');
+  if (!await confirmAction(`Aplicar ${file.name} (${updateKinds[type].toLowerCase()})? A versão e a descrição do pacote têm prioridade; uma versão menor que a ativa reverte o sistema. Os arquivos são gravados após validação.`, { title: 'Aplicar atualização', confirm: 'Aplicar' })) return;
   button.disabled = true; $('#update-status').className = 'update-note'; $('#update-status').textContent = 'Validando e aplicando o pacote…';
   try {
     const result = await uploadPackage(file, { 'X-Update-Filename': encodeURIComponent(file.name), 'X-Update-Version': version, 'X-Update-Type': type, 'X-Update-Message': encodeURIComponent(message) });
-    form.reset(); $('#update-status').className = 'update-note ok'; $('#update-status').textContent = `Versão ${result.version} aplicada (${result.files.length} ${result.files.length === 1 ? 'arquivo' : 'arquivos'}${result.created?.length ? `, ${result.created.length} novo${result.created.length > 1 ? 's' : ''}` : ''}). Cópia de segurança em ${result.backup}.${result.autoRestart ? ' O serviço está reiniciando sozinho; recarregue a página em alguns segundos.' : result.restartRequired ? ' Reinicie o serviço para carregar a atualização do servidor.' : ' Recarregue a página para usar a nova interface.'}`; toast(`Atualização ${result.version} aplicada.`, 'success'); await loadDeveloper();
+    form.reset(); $('#update-status').className = 'update-note ok'; $('#update-status').textContent = `Versão ${result.version} ${result.reverted ? 'aplicada (reversão para uma versão anterior)' : 'aplicada'} (${result.files.length} ${result.files.length === 1 ? 'arquivo' : 'arquivos'}${result.created?.length ? `, ${result.created.length} novo${result.created.length > 1 ? 's' : ''}` : ''}). Cópia de segurança em ${result.backup}.${result.autoRestart ? ' O serviço está reiniciando sozinho; recarregue a página em alguns segundos.' : result.restartRequired ? ' Reinicie o serviço para carregar a atualização do servidor.' : ' Recarregue a página para usar a nova interface.'}`; toast(result.reverted ? `Sistema revertido para a versão ${result.version}.` : `Atualização ${result.version} aplicada.`, 'success'); await loadDeveloper();
   } catch (error) { $('#update-status').className = 'update-note bad'; $('#update-status').textContent = error.message; toast(error.message, 'error'); } finally { button.disabled = false; }
 });
 
@@ -360,5 +454,10 @@ addEventListener('keydown', (event) => {
     event.preventDefault(); if (currentGuideEditable) saveGuide().catch((error) => toast(error.message, 'error'));
   }
 });
+$('#monitor-check').onclick = async (event) => { const button = event.currentTarget; button.disabled = true; try { renderMonitor(await api('/api/admin/monitor/check', { method: 'POST' })); toast('Verificação concluída.', 'success'); } catch (error) { toast(error.message, 'error'); } finally { button.disabled = false; } };
+$('#monitor-accept').onclick = async () => { const values = await promptFields('Aceitar estado atual', 'Os arquivos de código como estão agora passam a ser a referência do monitor de integridade. Confirme só se a mudança foi feita por você ou pela equipe.', [passwordField], { confirm: 'Aceitar' }); if (!values) return; try { renderMonitor(await api('/api/admin/monitor/accept', { method: 'POST', body: JSON.stringify(values) })); toast('Referência de integridade atualizada.', 'success'); } catch (error) { toast(error.message, 'error'); } };
+$('#backup-create').onclick = async (event) => { const button = event.currentTarget; button.disabled = true; try { const backup = await api('/api/admin/backups', { method: 'POST' }); toast(backup.ok ? 'Backup gerado e conferido.' : 'Backup gerado, mas a verificação falhou.', backup.ok ? 'success' : 'error'); await Promise.all([loadBackups(), loadMonitor()]); } catch (error) { toast(error.message, 'error'); } finally { button.disabled = false; } };
+// Com a tela Desenvolvedor aberta, a saúde se atualiza sozinha a cada minuto.
+setInterval(() => { if (currentSession?.role === 'admin' && !$('#developer-screen').hidden) loadMonitor().catch(() => {}); }, 60000);
 addEventListener('popstate', () => currentSession && navigate(routeScreen[location.pathname] || (currentSession.role === 'admin' ? 'admin' : 'dashboard'), false));
 api('/api/session').then((session) => session?.username ? (session.mustChangePassword ? showPasswordView() : showApp(session)) : showLogin()).catch(showLogin);

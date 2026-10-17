@@ -1,11 +1,13 @@
 const http = require('node:http');
 const path = require('node:path');
-const { one, initializeDatabase } = require('./lib/db');
-const { json, fail, html, serve, body, rawBody } = require('./lib/http');
+const { one, run, initializeDatabase } = require('./lib/db');
+const { json, fail, html, serve, body, rawBody, httpError, clientAddress, securityHeaders } = require('./lib/http');
 const auth = require('./lib/auth');
 const guides = require('./lib/guides');
 const options = require('./lib/options');
 const updates = require('./lib/updates');
+const backups = require('./lib/backups');
+const monitor = require('./lib/monitor');
 const { reportPage } = require('./lib/report');
 
 const ROOT = __dirname;
@@ -58,6 +60,28 @@ const routes = [
     if (result.restartRequired && process.env.INVOCATION_ID) { result.autoRestart = true; response.on('finish', () => setTimeout(() => process.exit(0), 500)); }
     return ctx.reply(201, result);
   }],
+  ['GET', '/api/admin/monitor', 'admin', () => monitor.status()],
+  ['POST', '/api/admin/monitor/check', 'admin', async () => { await monitor.checkIntegrity(); return monitor.status(); }],
+  ['POST', '/api/admin/monitor/accept', 'admin', async (ctx) => { await auth.confirmPassword(ctx.session, (await body(ctx.request)).password); await monitor.acceptFiles(ctx.session.username); return monitor.status(); }],
+  ['GET', '/api/admin/backups', 'admin', () => ({ enabled: backups.enabled(), backups: backups.list(), history: backups.history() })],
+  ['POST', '/api/admin/backups', 'admin', async (ctx) => { const result = backups.create('manual', ctx.session.username); await monitor.checkIntegrity(); return ctx.reply(201, result); }],
+  // Baixar e restaurar pedem a senha de novo; o arquivo baixado sai cifrado com a frase-senha informada.
+  ['POST', '/api/admin/backups/download', 'admin', async (ctx) => {
+    const data = await body(ctx.request); await auth.confirmPassword(ctx.session, data.password);
+    const file = backups.download(data.name, data.passphrase, ctx.session.username, clientAddress(ctx.request));
+    ctx.response.writeHead(200, { ...securityHeaders, 'Content-Type': 'application/octet-stream', 'Content-Disposition': `attachment; filename="${data.name}.sgbk"`, 'Cache-Control': 'no-store' }).end(file);
+  }],
+  ['POST', '/api/admin/backups/restore', 'admin', async (ctx) => {
+    const data = await body(ctx.request);
+    if (data.confirmation !== 'RESTAURAR') throw httpError(400, 'Digite RESTAURAR para confirmar.');
+    await auth.confirmPassword(ctx.session, data.password);
+    // O banco restaurado volta com a versão antiga gravada; a versão ativa é a do código que está rodando.
+    const version = await updates.activeVersion();
+    const result = await backups.restore(data.name, ctx.session.username, clientAddress(ctx.request), APP_VERSION);
+    await run('UPDATE system_settings SET setting_value=? WHERE setting_key=?', [version, 'app_version']);
+    await auth.clearAllSessions(); options.invalidate(); await monitor.checkIntegrity();
+    return ctx.reply(200, result, { 'Set-Cookie': auth.sessionCookie('', 0) });
+  }],
 
   // Guias e sugestões são sempre do usuário logado (ctx.session.userId).
   ['GET', '/api/dashboard', 'user', (ctx) => guides.dashboard(ctx.session.userId)],
@@ -95,6 +119,7 @@ function matchRoute(method, pathname) {
 }
 
 const server = http.createServer(async (request, response) => {
+  response.on('finish', () => monitor.request(response.statusCode));
   try {
     const url = new URL(request.url, 'http://localhost'); const pathname = url.pathname;
     if (STATIC[pathname]) return serve(response, path.join(ROOT, STATIC[pathname][0]), STATIC[pathname][1]);
@@ -122,6 +147,8 @@ const server = http.createServer(async (request, response) => {
 async function start() {
   await initializeDatabase(APP_VERSION);
   await auth.ensureAdmin();
+  backups.startSchedule();
+  monitor.start();
   server.listen(PORT, HOST, () => console.log(`SISGLOSA: http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT}`));
 }
 start().catch((error) => { console.error('Não foi possível iniciar:', error.message); process.exitCode = 1; });

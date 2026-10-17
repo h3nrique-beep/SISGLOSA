@@ -57,8 +57,12 @@ async function wait() {
     response = await request('/api/admin/updates'); const updates = await response.json(); assert.equal(updates[0].message, 'Ajuste de estilos'); assert.equal(updates[0].kind, 'corretiva');
     const plain = new AdmZip(); plain.addFile('public/styles.css', styles);
     const panelUpload = (version, type, message) => request('/api/admin/updates', { method: 'POST', headers: { 'Content-Type': 'application/zip', 'X-Update-Filename': 'painel.zip', 'X-Update-Version': version, 'X-Update-Type': type, 'X-Update-Message': encodeURIComponent(message) }, body: plain.toBuffer() });
-    response = await panelUpload('2.0.1', 'corretiva', 'Repetida'); assert.equal(response.status, 400); assert.match((await response.json()).error, /maior/);
+    response = await panelUpload('2.0.1', 'corretiva', '.'); assert.equal(response.status, 400); assert.match((await response.json()).error, /o que mudou/);
     response = await panelUpload('2.1.0', 'evolutiva', 'Nova tela de atualização'); const evolved = await response.json(); assert.equal(response.status, 201, JSON.stringify(evolved)); assert.equal(evolved.type, 'evolutiva'); assert.equal(evolved.message, 'Nova tela de atualização');
+    // Reversão: pacote de versão menor é aceito; com manifesto, versão e descrição vêm dele mesmo que o painel mande só ".".
+    response = await request('/api/admin/updates', { method: 'POST', headers: { 'Content-Type': 'application/zip', 'X-Update-Filename': 'sisglosa-2.0.1.zip', 'X-Update-Version': '9.9.9', 'X-Update-Type': 'corretiva', 'X-Update-Message': '.' }, body: fs.readFileSync(path.join(packages, 'sisglosa-2.0.1.zip')) }); const reverted = await response.json();
+    assert.equal(response.status, 201, JSON.stringify(reverted)); assert.equal(reverted.version, '2.0.1'); assert.equal(reverted.reverted, true); assert.equal(reverted.message, 'Ajuste de estilos');
+    response = await panelUpload('2.1.0', 'evolutiva', 'Volta para a 2.1.0'); assert.equal(response.status, 201);
     // Arquivo novo no pacote é criado; pacote recusado não deixa nada para trás.
     const brokenNew = new AdmZip(); brokenNew.addFile(newFile, Buffer.from('novo')); brokenNew.addFile('lib/quebrado.js', Buffer.from('function ('));
     response = await request('/api/admin/updates', { method: 'POST', headers: { 'Content-Type': 'application/zip', 'X-Update-Filename': 'novo.zip', 'X-Update-Version': '2.2.0', 'X-Update-Type': 'evolutiva', 'X-Update-Message': 'novo' }, body: brokenNew.toBuffer() }); assert.equal(response.status, 400); assert.ok(!fs.existsSync(path.join(__dirname, '..', newFile)));
