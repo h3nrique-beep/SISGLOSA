@@ -62,6 +62,22 @@ body.loading #login-view { opacity: 0; }
 .nav-link { min-height: 0; border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: transparent; color: var(--muted); padding: 0 13px; font-size: 13px; font-weight: 700; }
 .nav-link:hover, .nav-link.active { border-bottom-color: var(--blue); background: var(--surface-subtle); color: var(--navy); }
 .account { display: flex; align-items: center; gap: 10px; margin-left: auto; color: var(--muted); font-size: 13px; }
+.role-switch { padding: 2px; }
+.role-switch span { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; }
+.status-tabs.role-switch input:checked + span { background: var(--blue); color: #fff; box-shadow: none; }
+.role-choices { border: 0; margin: 0; padding: 0; display: grid; gap: 8px; }
+.role-choices legend { padding: 0; margin-bottom: 6px; color: var(--ink); font-size: 13px; font-weight: 700; }
+.role-choices.inline { display: flex; gap: 6px; }
+.role-choices.inline .role-chip span { width: auto; }
+/* Perfil como chip: checkbox escondido, o chip inteiro é o alvo do clique. */
+.role-chip { flex-direction: row; cursor: pointer; }
+.role-chip input { position: absolute; width: 1px; height: 1px; min-height: 0; opacity: 0; }
+.role-chip span { display: inline-flex; align-items: center; gap: 7px; width: 100%; border: 1px dashed var(--line-strong); border-radius: 999px; color: var(--muted); padding: 5px 12px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+.role-chip small { margin-left: auto; padding-left: 8px; color: inherit; font-weight: 500; opacity: .8; }
+.role-chip:hover span { border-color: var(--green); }
+.role-chip input:checked + span { border: 1px solid var(--green); background: var(--green-soft); color: var(--green); }
+.role-chip input:focus-visible + span { outline: 3px solid var(--focus); outline-offset: 1px; }
+.role-choices:not(.inline) .role-chip span { border-radius: 8px; padding: 10px 12px; font-size: 13px; }
 .app-version { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
 .account .text-button { color: var(--blue); }
 #app-view { flex-direction: column; min-height: 100vh; }

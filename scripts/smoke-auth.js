@@ -71,6 +71,20 @@ async function wait() {
     assert.equal(fs.readFileSync(path.join(__dirname, '..', newFile), 'utf8'), 'novo');
     response = await request('/api/users', { method: 'POST', body: JSON.stringify({ username: 'auditor' }) }); assert.equal(response.status, 201); const auditor = await response.json(); assert.equal(auditor.temporaryPassword, '123456');
     response = await request('/api/users', { method: 'POST', body: JSON.stringify({ username: 'administrador', role: 'admin' }) }); assert.equal(response.status, 201); assert.equal((await response.json()).role, 'admin');
+    // Perfis múltiplos: admin dá Guias ao "administrador", que alterna entre os dois perfis.
+    response = await request('/api/users'); const multi = (await response.json()).find((user) => user.username === 'administrador'); assert.deepEqual(multi.roles, ['admin']);
+    response = await request(`/api/users/${multi.id}/roles`, { method: 'PUT', body: JSON.stringify({ roles: [] }) }); assert.equal(response.status, 400);
+    response = await request(`/api/users/${multi.id}/roles`, { method: 'PUT', body: JSON.stringify({ roles: ['admin', 'user'] }) }); assert.deepEqual((await response.json()).roles, ['user', 'admin']);
+    response = await request('/api/users/1/roles', { method: 'PUT', body: JSON.stringify({ roles: ['user'] }) }); assert.equal(response.status, 400, 'admin não perde o próprio perfil');
+    response = await request('/api/session/role', { method: 'POST', body: JSON.stringify({ role: 'user' }) }); assert.equal(response.status, 403, 'admin sem perfil de guias não troca');
+    cookie = '';
+    response = await request('/api/login', { method: 'POST', body: JSON.stringify({ username: 'administrador', password: '123456' }) }); { const data = await response.json(); assert.equal(data.role, 'admin'); assert.deepEqual(data.roles, ['user', 'admin']); }
+    await request('/api/password', { method: 'POST', body: JSON.stringify({ password: 'Multi@1234' }) });
+    response = await request('/api/dashboard'); assert.equal(response.status, 403);
+    response = await request('/api/session/role', { method: 'POST', body: JSON.stringify({ role: 'user' }) }); assert.equal((await response.json()).role, 'user');
+    response = await request('/api/dashboard'); assert.equal(response.status, 200);
+    response = await request('/api/users'); assert.equal(response.status, 403);
+    response = await request('/api/session/role', { method: 'POST', body: JSON.stringify({ role: 'root' }) }); assert.equal(response.status, 403);
     cookie = '';
     response = await request('/api/login', { method: 'POST', body: JSON.stringify({ username: 'auditor', password: auditor.temporaryPassword }) }); { const data = await response.json(); assert.equal(data.mustChangePassword, true); assert.match(data.version, /^\d+\.\d+\.\d+$/, "auditor recebe a versão ativa"); }
     response = await request('/api/password', { method: 'POST', body: JSON.stringify({ password: '123456' }) }); assert.equal(response.status, 400);

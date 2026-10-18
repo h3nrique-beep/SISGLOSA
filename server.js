@@ -41,11 +41,13 @@ const routes = [
   }],
   ['POST', '/api/logout', 'public', async (ctx) => { await auth.logout(ctx.request); return ctx.reply(200, {}, { 'Set-Cookie': auth.sessionCookie('', 0) }); }],
   ['GET', '/api/session', 'session', (ctx) => sessionData(ctx.session)],
+  ['POST', '/api/session/role', 'session', async (ctx) => { await auth.switchRole(ctx.request, ctx.session, String((await body(ctx.request)).role || '')); return sessionData(ctx.session); }],
   ['POST', '/api/password', 'session', async (ctx) => { await auth.changePassword(ctx.session, (await body(ctx.request)).password); return sessionData(ctx.session); }],
 
   ['GET', '/api/users', 'admin', () => auth.listUsers()],
   ['POST', '/api/users', 'admin', async (ctx) => ctx.reply(201, await auth.createUser(await body(ctx.request)))],
   ['POST', /^\/api\/users\/(\d+)\/reset-password$/, 'admin', (ctx) => auth.resetPassword(Number(ctx.params[1]))],
+  ['PUT', /^\/api\/users\/(\d+)\/roles$/, 'admin', async (ctx) => auth.setRoles(ctx.session, Number(ctx.params[1]), await body(ctx.request))],
   ['DELETE', /^\/api\/users\/(\d+)$/, 'admin', async (ctx) => { await auth.removeUser(Number(ctx.params[1])); return {}; }],
   ['GET', '/api/admin/system', 'admin', () => updates.systemInfo()],
   ['GET', '/api/admin/updates', 'admin', () => updates.updateHistory()],

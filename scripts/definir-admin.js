@@ -28,6 +28,8 @@ try {
   const hash = hashPassword(password);
   if (existing) db.prepare("UPDATE users SET password_hash=?, role='admin', must_change_password=0 WHERE id=?").run(hash, existing.id);
   else db.prepare("INSERT INTO users (username, password_hash, role, must_change_password) VALUES (?, ?, 'admin', 0)").run(username, hash);
+  // Perfis múltiplos (users.roles): garante o de administrador sem tirar o de guias. Banco antigo sem a coluna: o sistema migra ao iniciar.
+  if (db.prepare("SELECT 1 FROM pragma_table_info('users') WHERE name='roles'").get()) db.prepare("UPDATE users SET roles=CASE WHEN roles LIKE '%admin%' THEN roles WHEN roles='' THEN 'admin' ELSE roles || ',admin' END WHERE username=?").run(username);
   const removed = removeOthers ? Number(db.prepare('DELETE FROM users WHERE username<>?').run(username).changes) : 0;
   db.exec('COMMIT');
   console.log(`Senha do administrador "${username}" ${existing ? 'atualizada' : 'criada'}; troca obrigatória desligada.`);
