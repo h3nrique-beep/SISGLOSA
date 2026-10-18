@@ -11,7 +11,7 @@ const root = path.join(__dirname, '..');
 // Arquivo de código "plantado" para o monitor de integridade acusar; removido no final.
 const planted = path.join(root, 'public', 'teste-integridade.txt');
 const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'sisglosa-backup-'));
-const server = spawn(process.execPath, ['server.js'], { cwd: root, env: { ...process.env, PORT: String(port), DB_FILE: path.join(folder, 'guias.db'), UPDATE_BACKUP_ROOT: path.join(folder, 'updates') }, stdio: ['ignore', 'pipe', 'pipe'] });
+const server = spawn(process.execPath, ['server.js'], { cwd: root, env: { ...process.env, PORT: String(port), DB_FILE: path.join(folder, 'guias.db'), UPDATE_BACKUP_ROOT: path.join(folder, 'updates'), BACKUP_MAX_MB: '0' }, stdio: ['ignore', 'pipe', 'pipe'] });
 let serverError = '';
 server.stdout.resume();
 server.stderr.on('data', (chunk) => { serverError += chunk; });
@@ -59,6 +59,16 @@ async function wait() {
     assert.equal((await (await request('/api/admin/system')).json()).version, require('../package.json').version);
     data = await (await request('/api/admin/backups')).json();
     assert.deepEqual(data.history.slice(0, 2).map((entry) => entry.action), ['restaurado', 'criado']);
+
+    // Teto de espaço (BACKUP_MAX_MB=0 neste teste): sobram só os 7 automáticos mais recentes; manuais não saem.
+    for (let day = 1; day <= 10; day += 1) {
+      const name = `guias-202001${String(day).padStart(2, '0')}-000000000-auto.db`;
+      fs.writeFileSync(path.join(folder, 'backups', name), 'x'.repeat(1000)); fs.writeFileSync(path.join(folder, 'backups', `${name}.json`), JSON.stringify({ created_at: Date.now(), ok: true }));
+    }
+    assert.equal((await post('/api/admin/backups')).status, 201);
+    data = await (await request('/api/admin/backups')).json();
+    const autos = data.backups.filter((backup) => backup.kind === 'auto');
+    assert.equal(autos.length, 7); assert.ok(!autos.some((backup) => /^guias-2020010[1-4]-/.test(backup.name)), 'saem os mais antigos'); assert.ok(autos.some((backup) => !backup.name.startsWith('guias-2020')), 'o backup real mais novo fica'); assert.ok(data.backups.some((backup) => backup.kind === 'manual'));
 
     // Monitor: tudo verde; um arquivo de código novo vira alerta crítico até ser aceito.
     let monitor = await (await request('/api/admin/monitor')).json();
