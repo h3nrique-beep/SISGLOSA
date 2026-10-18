@@ -90,7 +90,7 @@ const routes = [
     const version = await updates.activeVersion();
     const result = await backups.restore(data.name, ctx.session.username, clientAddress(ctx.request), APP_VERSION);
     await run('UPDATE system_settings SET setting_value=? WHERE setting_key=?', [version, 'app_version']);
-    await auth.clearAllSessions(); options.invalidate(); await monitor.checkIntegrity();
+    await auth.clearAllSessions(); await options.adoptLegacy(); await monitor.checkIntegrity();
     return ctx.reply(200, result, { 'Set-Cookie': auth.sessionCookie('', 0) });
   }],
 
@@ -159,6 +159,7 @@ const server = http.createServer(async (request, response) => {
 async function start() {
   await initializeDatabase(APP_VERSION);
   await auth.ensureAdmin();
+  await options.adoptLegacy();
   backups.startSchedule();
   monitor.start();
   server.listen(PORT, HOST, () => console.log(`SISGLOSA: http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT}`));
