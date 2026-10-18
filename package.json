@@ -7,7 +7,7 @@
     "start": "node server.js",
     "migrate:sqlite": "node scripts/migrate-sqlite-to-mysql.js",
     "pacote": "node scripts/gerar-pacote.js",
-    "check:syntax": "node --check server.js && node --check public/app.js && node --check lib/db.js && node --check lib/http.js && node --check lib/auth.js && node --check lib/modules.js && node --check lib/options.js && node --check lib/guides.js && node --check lib/report.js && node --check lib/updates.js && node --check lib/passwords.js && node --check lib/pacote.js && node --check lib/backups.js && node --check lib/monitor.js && node --check scripts/migrate-sqlite-to-mysql.js && node --check scripts/gerar-pacote.js && node --check scripts/definir-admin.js && node --check scripts/smoke-auth.js && node --check scripts/smoke-backup.js && node --check scripts/abrir-backup.js",
+    "check:syntax": "node --check server.js && node --check public/app.js && node --check lib/db.js && node --check lib/http.js && node --check lib/auth.js && node --check lib/modules.js && node --check lib/options.js && node --check lib/guides.js && node --check lib/report.js && node --check lib/updates.js && node --check lib/passwords.js && node --check lib/pacote.js && node --check lib/backups.js && node --check lib/monitor.js && node --check lib/audit.js && node --check scripts/migrate-sqlite-to-mysql.js && node --check scripts/gerar-pacote.js && node --check scripts/definir-admin.js && node --check scripts/smoke-auth.js && node --check scripts/smoke-backup.js && node --check scripts/abrir-backup.js",
     "check": "npm run check:syntax && node scripts/smoke-auth.js && node scripts/smoke-backup.js"
   },
   "dependencies": {

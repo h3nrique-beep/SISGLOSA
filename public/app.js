@@ -339,7 +339,15 @@ function showDevTab(tab) {
 document.querySelectorAll('.dev-tab').forEach((button) => { button.onclick = () => showDevTab(button.dataset.tab); });
 let savedDevTab = 'saude'; try { savedDevTab = localStorage.getItem(devTabKey) || 'saude'; } catch {}
 showDevTab(savedDevTab);
+const auditActions = { login: 'Entrou no sistema', login_falhou: 'Falha de login', login_bloqueado: 'Login bloqueado (muitas tentativas)', perfil_trocado: 'Trocou o perfil ativo', senha_trocada: 'Trocou a própria senha', usuario_criado: 'Criou usuário', senha_redefinida: 'Redefiniu a senha', perfis_alterados: 'Alterou perfis', usuario_removido: 'Removeu usuário', pacote_aplicado: 'Aplicou pacote', integridade_aceita: 'Aceitou o estado do código', guia_excluida: 'Excluiu guia' };
+function auditDetail(entry) { const roles = (list) => (list || []).map((role) => roleLabels[role] || role).join(' + '); return [entry.target, entry.roles && roles(entry.roles), entry.role && roleLabels[entry.role], entry.version && `v${entry.version}`, entry.guide && `guia nº ${entry.guide}`].filter(Boolean).join(' · ') || '—'; }
+async function loadAudit() {
+  const entries = await api('/api/admin/audit'); const target = $('#audit-list'); target.replaceChildren();
+  if (!entries.length) return emptyRow(target, 5, 'Sem registros.');
+  entries.forEach((entry) => { const row = document.createElement('tr'); if (entry.action.startsWith('login_')) row.className = 'audit-warning'; row.innerHTML = `<td>${msDate(entry.at)}</td><td><strong>${escape(entry.username || '—')}</strong></td><td>${escape(auditActions[entry.action] || entry.action)}</td><td>${escape(auditDetail(entry))}</td><td><small class="muted">${escape(entry.ip || '—')}</small></td>`; target.append(row); });
+}
 async function loadDeveloper() {
+  loadAudit().catch((error) => toast(error.message, 'error'));
   loadMonitor().catch((error) => toast(error.message, 'error')); loadBackups().catch((error) => toast(error.message, 'error'));
   try { const health = await api('/health'); setHealth(health.status === 'ok', health.status === 'ok' ? 'Serviço respondendo normalmente.' : 'Verifique o serviço.'); } catch { setHealth(false, 'Não foi possível consultar o serviço.'); }
   try { const [system, history] = await Promise.all([api('/api/admin/system'), api('/api/admin/updates')]); renderUpdates(system, history); $('#ops-database').textContent = system.database; $('#ops-node').textContent = system.node; $('#ops-uptime').textContent = duration(system.uptime); } catch (error) { toast(error.message, 'error'); }

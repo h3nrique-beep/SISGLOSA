@@ -8,6 +8,7 @@ const options = require('./lib/options');
 const updates = require('./lib/updates');
 const backups = require('./lib/backups');
 const monitor = require('./lib/monitor');
+const audit = require('./lib/audit');
 const { reportPage } = require('./lib/report');
 
 const ROOT = __dirname;
@@ -33,24 +34,31 @@ const PAGES = ['/', '/login', '/guias', '/registros', '/administracao', '/desenv
 // Todo usuário vê a versão ativa no cabeçalho, não só o administrador.
 const sessionData = async (session) => ({ ...auth.sessionData(session), version: await updates.activeVersion() });
 const query = (ctx) => Object.fromEntries(ctx.url.searchParams);
+// Registro de ações: quem (usuário logado), o quê, de qual IP.
+const note = (ctx, action, detail, username = ctx.session?.username) => audit.record(action, username, clientAddress(ctx.request), detail);
 const routes = [
   ['GET', '/health', 'public', async () => { await one('SELECT 1'); return { status: 'ok' }; }],
   ['POST', '/api/login', 'public', async (ctx) => {
-    const { id, session } = await auth.login(ctx.request, await body(ctx.request));
+    const data = await body(ctx.request);
+    let result;
+    try { result = await auth.login(ctx.request, data); } catch (error) { note(ctx, error.statusCode === 429 ? 'login_bloqueado' : 'login_falhou', {}, data.username); throw error; }
+    const { id, session } = result;
+    note(ctx, 'login', {}, session.username);
     return ctx.reply(200, await sessionData(session), { 'Set-Cookie': auth.sessionCookie(id) });
   }],
   ['POST', '/api/logout', 'public', async (ctx) => { await auth.logout(ctx.request); return ctx.reply(200, {}, { 'Set-Cookie': auth.sessionCookie('', 0) }); }],
   ['GET', '/api/session', 'session', (ctx) => sessionData(ctx.session)],
-  ['POST', '/api/session/role', 'session', async (ctx) => { await auth.switchRole(ctx.request, ctx.session, String((await body(ctx.request)).role || '')); return sessionData(ctx.session); }],
-  ['POST', '/api/password', 'session', async (ctx) => { await auth.changePassword(ctx.session, (await body(ctx.request)).password); return sessionData(ctx.session); }],
+  ['POST', '/api/session/role', 'session', async (ctx) => { await auth.switchRole(ctx.request, ctx.session, String((await body(ctx.request)).role || '')); note(ctx, 'perfil_trocado', { role: ctx.session.role }); return sessionData(ctx.session); }],
+  ['POST', '/api/password', 'session', async (ctx) => { await auth.changePassword(ctx.session, (await body(ctx.request)).password); note(ctx, 'senha_trocada'); return sessionData(ctx.session); }],
 
   ['GET', '/api/users', 'admin', () => auth.listUsers()],
-  ['POST', '/api/users', 'admin', async (ctx) => ctx.reply(201, await auth.createUser(await body(ctx.request)))],
-  ['POST', /^\/api\/users\/(\d+)\/reset-password$/, 'admin', (ctx) => auth.resetPassword(Number(ctx.params[1]))],
-  ['PUT', /^\/api\/users\/(\d+)\/roles$/, 'admin', async (ctx) => auth.setRoles(ctx.session, Number(ctx.params[1]), await body(ctx.request))],
-  ['DELETE', /^\/api\/users\/(\d+)$/, 'admin', async (ctx) => { await auth.removeUser(Number(ctx.params[1])); return {}; }],
+  ['POST', '/api/users', 'admin', async (ctx) => { const user = await auth.createUser(await body(ctx.request)); note(ctx, 'usuario_criado', { target: user.username, roles: user.roles }); return ctx.reply(201, user); }],
+  ['POST', /^\/api\/users\/(\d+)\/reset-password$/, 'admin', async (ctx) => { const result = await auth.resetPassword(Number(ctx.params[1])); note(ctx, 'senha_redefinida', { target: result.username }); return result; }],
+  ['PUT', /^\/api\/users\/(\d+)\/roles$/, 'admin', async (ctx) => { const result = await auth.setRoles(ctx.session, Number(ctx.params[1]), await body(ctx.request)); note(ctx, 'perfis_alterados', { target: result.username, roles: result.roles }); return result; }],
+  ['DELETE', /^\/api\/users\/(\d+)$/, 'admin', async (ctx) => { const { username } = await auth.removeUser(Number(ctx.params[1])); note(ctx, 'usuario_removido', { target: username }); return {}; }],
   ['GET', '/api/admin/system', 'admin', () => updates.systemInfo()],
   ['GET', '/api/admin/updates', 'admin', () => updates.updateHistory()],
+  ['GET', '/api/admin/audit', 'admin', () => audit.list()],
   ['POST', '/api/admin/updates', 'admin', async (ctx) => {
     const { request, response } = ctx;
     if (!/^application\/(zip|octet-stream)(?:;|$)/.test(request.headers['content-type'] || '')) return ctx.reply(415, { error: 'Envie um arquivo ZIP.' });
@@ -59,12 +67,13 @@ const routes = [
     if (!filename.toLowerCase().endsWith('.zip')) return ctx.reply(400, { error: 'O pacote precisa ter extensão .zip.' });
     const result = await updates.applyUpdatePackage(await rawBody(request, updates.MAX_UPDATE_SIZE), filename, ctx.session.username, { version: header('x-update-version'), type: header('x-update-type'), message: header('x-update-message') });
     // Sob o systemd (INVOCATION_ID), sai após responder e o Restart=always carrega o código novo, sem acesso por SSH.
+    note(ctx, 'pacote_aplicado', { version: result.version });
     if (result.restartRequired && process.env.INVOCATION_ID) { result.autoRestart = true; response.on('finish', () => setTimeout(() => process.exit(0), 500)); }
     return ctx.reply(201, result);
   }],
   ['GET', '/api/admin/monitor', 'admin', () => monitor.status()],
   ['POST', '/api/admin/monitor/check', 'admin', async () => { await monitor.checkIntegrity(); return monitor.status(); }],
-  ['POST', '/api/admin/monitor/accept', 'admin', async (ctx) => { await auth.confirmPassword(ctx.session, (await body(ctx.request)).password); await monitor.acceptFiles(ctx.session.username); return monitor.status(); }],
+  ['POST', '/api/admin/monitor/accept', 'admin', async (ctx) => { await auth.confirmPassword(ctx.session, (await body(ctx.request)).password); await monitor.acceptFiles(ctx.session.username); note(ctx, 'integridade_aceita'); return monitor.status(); }],
   ['GET', '/api/admin/backups', 'admin', () => ({ enabled: backups.enabled(), backups: backups.list(), history: backups.history() })],
   ['POST', '/api/admin/backups', 'admin', async (ctx) => { const result = backups.create('manual', ctx.session.username); await monitor.checkIntegrity(); return ctx.reply(201, result); }],
   // Baixar e restaurar pedem a senha de novo; o arquivo baixado sai cifrado com a frase-senha informada.
@@ -100,16 +109,16 @@ const routes = [
     html(ctx.response, reportPage(data));
   }],
   ['GET', /^\/api\/guides\/(\d+)$/, 'user', async (ctx) => (await guides.guide(Number(ctx.params[1]), ctx.session.userId)) || ctx.reply(404, { error: 'Guia não encontrada.' })],
-  ['DELETE', /^\/api\/guides\/(\d+)$/, 'user', async (ctx) => { await guides.remove(Number(ctx.params[1]), ctx.session.userId); return {}; }],
+  ['DELETE', /^\/api\/guides\/(\d+)$/, 'user', async (ctx) => { await guides.remove(Number(ctx.params[1]), ctx.session.userId, ctx.session.username); note(ctx, 'guia_excluida', { guide: Number(ctx.params[1]) }); return {}; }],
 
   ['GET', '/api/options/ocs', 'user', (ctx) => options.ocs(ctx.session.userId)],
   ['GET', '/api/options/patients', 'user', (ctx) => options.patients(ctx.session.userId)],
   ['GET', '/api/options/specifications', 'user', (ctx) => options.specifications(ctx.session.userId, ctx.url.searchParams.get('module'))],
-  ['DELETE', /^\/api\/options\/(ocs|patients|specifications)$/, 'user', async (ctx) => { await options.hideSuggestion(ctx.params[1], (await body(ctx.request)).value); return {}; }],
+  ['DELETE', /^\/api\/options\/(ocs|patients|specifications)$/, 'user', async (ctx) => { await options.hideSuggestion(ctx.session.userId, ctx.params[1], (await body(ctx.request)).value); return {}; }],
   ['GET', '/api/options/modules', 'user', (ctx) => options.modules(ctx.session.userId)],
   ['GET', '/api/options/justifications', 'user', (ctx) => options.justifications(ctx.session.userId)],
-  ['POST', '/api/options/justifications', 'user', async (ctx) => ctx.reply(201, await options.saveJustification((await body(ctx.request)).justification))],
-  ['DELETE', '/api/options/justifications', 'user', async (ctx) => { await options.deleteJustification((await body(ctx.request)).justification); return {}; }],
+  ['POST', '/api/options/justifications', 'user', async (ctx) => ctx.reply(201, await options.saveJustification(ctx.session.userId, (await body(ctx.request)).justification))],
+  ['DELETE', '/api/options/justifications', 'user', async (ctx) => { await options.deleteJustification(ctx.session.userId, (await body(ctx.request)).justification); return {}; }],
 ];
 
 function matchRoute(method, pathname) {
@@ -141,8 +150,9 @@ const server = http.createServer(async (request, response) => {
     const result = await route.handler({ request, response, url, params: route.params, session, reply });
     if (!replied && !response.headersSent) json(response, 200, result === undefined ? {} : result);
   } catch (error) {
+    // Erro inesperado (banco, bug): detalhe só no log do servidor; a tela recebe uma mensagem genérica.
     if (!error.statusCode) console.error(error);
-    if (!response.headersSent) fail(response, error.statusCode || 400, error.message || 'Não foi possível concluir a operação.');
+    if (!response.headersSent) fail(response, error.statusCode || 500, error.statusCode ? error.message : 'Erro interno. Tente de novo; se continuar, avise o administrador.');
   }
 });
 

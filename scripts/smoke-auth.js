@@ -1,6 +1,7 @@
 const assert = require('node:assert/strict');
 const AdmZip = require('adm-zip');
 const { spawn, spawnSync } = require('node:child_process');
+const crypto = require('node:crypto');
 const fs = require('node:fs');
 const { DatabaseSync } = require('node:sqlite');
 const os = require('node:os');
@@ -112,13 +113,32 @@ async function wait() {
     response = await request('/api/options/justifications'); const justifications = await response.json(); assert.ok(justifications.includes('Ajuste, será pago R$ conforme as regras da CBHPM Edição 2014 e de acordo com o item 5 do referencial de custos do contrato.')); assert.ok(justifications.includes('Justificativa registrada pelo auditor.'));
     response = await request('/api/options/justifications', { method: 'DELETE', body: JSON.stringify({ justification: 'Justificativa registrada pelo auditor.' }) }); assert.equal(response.status, 200);
     response = await request('/api/options/justifications'); assert.ok(!(await response.json()).includes('Justificativa registrada pelo auditor.'));
+    response = await request('/api/options/justifications', { method: 'POST', body: JSON.stringify({ justification: 'Texto privado do auditor.' }) }); assert.equal(response.status, 201);
+    // Exclusão lógica: some para o usuário, mas guia e histórico ficam no banco.
+    response = await request('/api/guides', { method: 'POST', body: JSON.stringify({ ocs: 'Para excluir', patient: '', billed: 0, items: [], status: 'RASCUNHO' }) }); const doomed = await response.json();
+    response = await request(`/api/guides/${doomed.number}`, { method: 'DELETE' }); assert.equal(response.status, 200);
+    response = await request(`/api/guides/${doomed.number}`); assert.equal(response.status, 404);
     response = await request(`/api/guides/${finalized.number}/report`); const report = await response.text(); assert.match(report, /Relatório de Glosas do Atendimento 2\.706\.875/); assert.match(report, /GUIA Nº: G-2026\/123/); assert.equal(await count({ q: 'g-2026' }), 1); assert.match(report, /R\$\s*85,00/);
     const database = new DatabaseSync(path.join(folder, 'guias.db')); database.prepare("UPDATE guides SET finalized_at=datetime('now', '-31 days') WHERE number=?").run(finalized.number);
     response = await request('/api/guides', { method: 'POST', body: JSON.stringify({ ...finalized, status: 'FINALIZADA' }) }); assert.equal(response.status, 400);
     response = await request(`/api/guides/${finalized.number}`, { method: 'DELETE' }); assert.equal(response.status, 403);
+    { const kept = database.prepare('SELECT owner_id, deleted_owner_id, deleted_at FROM guides WHERE number=?').get(doomed.number); assert.equal(kept.owner_id, null); assert.ok(kept.deleted_owner_id && kept.deleted_at, 'guia excluída continua no banco');
+      assert.equal(database.prepare('SELECT action FROM guide_edits WHERE guide_number=? ORDER BY id DESC').get(doomed.number).action, 'Guia excluída'); }
+    // Hash antigo (120 mil iterações, "salt:digest") ainda entra e é refeito com 600 mil no login.
+    { const salt = crypto.randomBytes(16); database.prepare("UPDATE users SET password_hash=? WHERE username='administrador'").run(`${salt.toString('base64')}:${crypto.pbkdf2Sync('Multi@1234', salt, 120000, 32, 'sha256').toString('base64')}`); }
     database.close();
+    // Justificativa salva por um auditor não aparece para outro usuário de guias.
     cookie = '';
+    response = await request('/api/login', { method: 'POST', body: JSON.stringify({ username: 'administrador', password: 'Multi@1234' }) }); assert.equal(response.status, 200);
+    { const check = new DatabaseSync(path.join(folder, 'guias.db')); assert.match(check.prepare("SELECT password_hash FROM users WHERE username='administrador'").get().password_hash, /^600000:/); check.close(); }
+    await request('/api/session/role', { method: 'POST', body: JSON.stringify({ role: 'user' }) });
+    response = await request('/api/options/justifications'); assert.ok(!(await response.json()).includes('Texto privado do auditor.'), 'justificativa é de cada usuário');
+    cookie = '';
+    response = await request('/api/login', { method: 'POST', body: JSON.stringify({ username: 'admin', password: 'senha-errada' }) }); assert.equal(response.status, 401);
+    response = await request('/api/login', { method: 'POST', body: JSON.stringify({ username: 'ninguem', password: 'x' }) }); assert.equal(response.status, 401);
     await request('/api/login', { method: 'POST', body: JSON.stringify({ username: 'admin', password: 'Admin@Nova1' }) });
+    { const actions = (await (await request('/api/admin/audit')).json()).map((entry) => entry.action);
+      for (const action of ['login', 'login_falhou', 'usuario_criado', 'perfis_alterados', 'perfil_trocado', 'senha_trocada', 'guia_excluida']) assert.ok(actions.includes(action), `registro tem ${action}`); }
     response = await request('/api/users'); assert.equal((await response.json()).length, 3);
     response = await request('/api/users/2', { method: 'DELETE' }); assert.equal(response.status, 200);
     response = await request('/api/users'); assert.equal((await response.json()).length, 2);

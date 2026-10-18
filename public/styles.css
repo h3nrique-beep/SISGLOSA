@@ -78,6 +78,7 @@ body.loading #login-view { opacity: 0; }
 .role-chip input:checked + span { border: 1px solid var(--green); background: var(--green-soft); color: var(--green); }
 .role-chip input:focus-visible + span { outline: 3px solid var(--focus); outline-offset: 1px; }
 .role-choices:not(.inline) .role-chip span { border-radius: 8px; padding: 10px 12px; font-size: 13px; }
+.audit-warning td:nth-child(3) { color: var(--red); font-weight: 700; }
 .app-version { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
 .account .text-button { color: var(--blue); }
 #app-view { flex-direction: column; min-height: 100vh; }
