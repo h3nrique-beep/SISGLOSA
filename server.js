@@ -160,6 +160,7 @@ async function start() {
   await initializeDatabase(APP_VERSION);
   await auth.ensureAdmin();
   await options.adoptLegacy();
+  audit.startPrune();
   backups.startSchedule();
   monitor.start();
   server.listen(PORT, HOST, () => console.log(`SISGLOSA: http://${HOST === '0.0.0.0' ? 'localhost' : HOST}:${PORT}`));

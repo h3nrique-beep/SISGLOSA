@@ -25,5 +25,12 @@ const options = require('../lib/options');
   assert.equal(await count('deleted_justifications', 'owner_id IS NOT NULL'), 2, 'excluída vale para os dois de guias');
   assert.equal(await count('hidden_suggestions', 'owner_id IS NOT NULL'), 2, 'oculta vale para os dois de guias');
   assert.deepEqual(await options.ocs(1), [], 'sugestão oculta continua oculta');
-  console.log('Smoke de listas antigas: ok.');
+  // Registro de ações: o que passou de 1 ano sai; o resto fica.
+  const audit = require('../lib/audit');
+  const day = 24 * 60 * 60 * 1000;
+  fs.writeFileSync(audit.AUDIT_FILE, [400, 366, 10, 0].map((age) => `${JSON.stringify({ at: Date.now() - age * day, action: 'login', username: `idade-${age}` })}\n`).join(''));
+  assert.equal(audit.prune(), 2);
+  assert.deepEqual(audit.list().map((entry) => entry.username), ['idade-0', 'idade-10']);
+  assert.equal(audit.prune(), 0, 'sem nada vencido não reescreve');
+  console.log('Smoke de listas antigas e retenção do registro: ok.');
 })().catch((error) => { console.error(error); process.exitCode = 1; });
