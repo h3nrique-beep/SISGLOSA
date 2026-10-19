@@ -31,6 +31,7 @@ const options = require('../lib/options');
   fs.writeFileSync(audit.AUDIT_FILE, [400, 366, 10, 0].map((age) => `${JSON.stringify({ at: Date.now() - age * day, action: 'login', username: `idade-${age}` })}\n`).join(''));
   assert.equal(audit.prune(), 2);
   assert.deepEqual(audit.list().map((entry) => entry.username), ['idade-0', 'idade-10']);
+  assert.deepEqual(audit.list(Date.now() - day).map((entry) => entry.username), ['idade-0'], 'filtro do dia');
   assert.equal(audit.prune(), 0, 'sem nada vencido não reescreve');
   console.log('Smoke de listas antigas e retenção do registro: ok.');
 })().catch((error) => { console.error(error); process.exitCode = 1; });
