@@ -32,6 +32,8 @@ const options = require('../lib/options');
   assert.equal(audit.prune(), 2);
   assert.deepEqual(audit.list().map((entry) => entry.username), ['idade-0', 'idade-10']);
   assert.deepEqual(audit.list(Date.now() - day).map((entry) => entry.username), ['idade-0'], 'filtro do dia');
+  assert.deepEqual(audit.list(Date.now() - 11 * day, Date.now() - 9 * day).map((entry) => entry.username), ['idade-10'], 'outro dia');
+  assert.equal(audit.days().length, 2, 'dias com uso');
   assert.equal(audit.prune(), 0, 'sem nada vencido não reescreve');
   console.log('Smoke de listas antigas e retenção do registro: ok.');
 })().catch((error) => { console.error(error); process.exitCode = 1; });

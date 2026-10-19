@@ -58,7 +58,7 @@ const routes = [
   ['DELETE', /^\/api\/users\/(\d+)$/, 'admin', async (ctx) => { const { username } = await auth.removeUser(Number(ctx.params[1])); note(ctx, 'usuario_removido', { target: username }); return {}; }],
   ['GET', '/api/admin/system', 'admin', () => updates.systemInfo()],
   ['GET', '/api/admin/updates', 'admin', () => updates.updateHistory()],
-  ['GET', '/api/admin/audit', 'admin', (ctx) => audit.list(Number(ctx.url.searchParams.get('desde')) || 0)],
+  ['GET', '/api/admin/audit', 'admin', (ctx) => { const param = (name) => Number(ctx.url.searchParams.get(name)) || 0; return { entries: audit.list(param('desde'), param('ate') || Infinity), days: audit.days(param('fuso')) }; }],
   ['POST', '/api/admin/updates', 'admin', async (ctx) => {
     const { request, response } = ctx;
     if (!/^application\/(zip|octet-stream)(?:;|$)/.test(request.headers['content-type'] || '')) return ctx.reply(415, { error: 'Envie um arquivo ZIP.' });

@@ -137,7 +137,7 @@ async function wait() {
     response = await request('/api/login', { method: 'POST', body: JSON.stringify({ username: 'admin', password: 'senha-errada' }) }); assert.equal(response.status, 401);
     response = await request('/api/login', { method: 'POST', body: JSON.stringify({ username: 'ninguem', password: 'x' }) }); assert.equal(response.status, 401);
     await request('/api/login', { method: 'POST', body: JSON.stringify({ username: 'admin', password: 'Admin@Nova1' }) });
-    { const actions = (await (await request('/api/admin/audit')).json()).map((entry) => entry.action);
+    { const log = await (await request('/api/admin/audit')).json(); const actions = log.entries.map((entry) => entry.action); assert.equal(log.days.length, 1, 'um dia com uso');
       for (const action of ['login', 'login_falhou', 'usuario_criado', 'perfis_alterados', 'perfil_trocado', 'senha_trocada', 'guia_excluida']) assert.ok(actions.includes(action), `registro tem ${action}`); }
     response = await request('/api/users'); assert.equal((await response.json()).length, 3);
     response = await request('/api/users/2', { method: 'DELETE' }); assert.equal(response.status, 200);

@@ -341,11 +341,17 @@ let savedDevTab = 'saude'; try { savedDevTab = localStorage.getItem(devTabKey) |
 showDevTab(savedDevTab);
 const auditActions = { login: 'Entrou no sistema', login_falhou: 'Falha de login', login_bloqueado: 'Login bloqueado (muitas tentativas)', perfil_trocado: 'Trocou o perfil ativo', senha_trocada: 'Trocou a própria senha', usuario_criado: 'Criou usuário', senha_redefinida: 'Redefiniu a senha', perfis_alterados: 'Alterou perfis', usuario_removido: 'Removeu usuário', pacote_aplicado: 'Aplicou pacote', integridade_aceita: 'Aceitou o estado do código', guia_excluida: 'Excluiu guia' };
 function auditDetail(entry) { const roles = (list) => (list || []).map((role) => roleLabels[role] || role).join(' + '); return [entry.target, entry.roles && roles(entry.roles), entry.role && roleLabels[entry.role], entry.version && `v${entry.version}`, entry.guide && `guia nº ${entry.guide}`].filter(Boolean).join(' · ') || '—'; }
-async function loadAudit() {
-  const entries = await api(`/api/admin/audit?desde=${new Date().setHours(0, 0, 0, 0)}`); const target = $('#audit-list'); target.replaceChildren();
-  if (!entries.length) return emptyRow(target, 5, 'Nenhuma ação registrada hoje.');
+// Um dia por vez, no fuso do navegador. O seletor lista hoje e os dias em que o sistema teve alguma ação.
+const localDay = (date = new Date()) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+async function loadAudit(day = $('#audit-day').value || localDay()) {
+  const [year, month, date] = day.split('-').map(Number), from = new Date(year, month - 1, date).getTime(), to = new Date(year, month - 1, date + 1).getTime();
+  const { entries, days } = await api(`/api/admin/audit?desde=${from}&ate=${to}&fuso=${new Date().getTimezoneOffset()}`); const target = $('#audit-list'); target.replaceChildren();
+  const today = localDay(), label = (value) => `${value === today ? 'Hoje — ' : ''}${value.split('-').reverse().join('/')}`;
+  $('#audit-day').innerHTML = [...new Set([today, day, ...days])].sort().reverse().map((value) => `<option value="${value}"${value === day ? ' selected' : ''}>${label(value)}</option>`).join('');
+  if (!entries.length) return emptyRow(target, 5, day === today ? 'Nenhuma ação registrada hoje.' : 'Nenhuma ação registrada neste dia.');
   entries.forEach((entry) => { const row = document.createElement('tr'); if (entry.action.startsWith('login_')) row.className = 'audit-warning'; row.innerHTML = `<td>${msDate(entry.at)}</td><td><strong>${escape(entry.username || '—')}</strong></td><td>${escape(auditActions[entry.action] || entry.action)}</td><td>${escape(auditDetail(entry))}</td><td><small class="muted">${escape(entry.ip || '—')}</small></td>`; target.append(row); });
 }
+$('#audit-day').onchange = (event) => loadAudit(event.target.value).catch((error) => toast(error.message, 'error'));
 async function loadDeveloper() {
   loadAudit().catch((error) => toast(error.message, 'error'));
   loadMonitor().catch((error) => toast(error.message, 'error')); loadBackups().catch((error) => toast(error.message, 'error'));
