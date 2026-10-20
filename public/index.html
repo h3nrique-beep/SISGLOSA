@@ -191,13 +191,11 @@
   <div id="justification-modal" class="modal-backdrop" hidden>
     <section class="modal-card justification-modal-card" role="dialog" aria-modal="true" aria-labelledby="justification-modal-title">
       <button id="justification-modal-close" class="modal-close text-button" type="button" aria-label="Fechar"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
-      <h2 id="justification-modal-title">Usar justificativa salva</h2>
-      <p class="muted">Busque uma justificativa já usada neste módulo e aplique-a ao item. <strong id="justification-module"></strong></p>
-      <input id="saved-justification-search" type="search" aria-label="Buscar justificativa salva" placeholder="Buscar justificativa">
-      <div class="saved-justification-create"><label for="new-saved-justification">Nova justificativa</label><textarea id="new-saved-justification" rows="3" placeholder="Digite uma justificativa para adicionar à lista"></textarea><button id="add-saved-justification" type="button">Adicionar à lista</button></div>
+      <div class="justification-modal-head"><h2 id="justification-modal-title">Justificativas</h2><select id="justification-module" class="module-pill" aria-label="Módulo das justificativas"></select></div>
+      <textarea id="saved-justification-search" rows="1" aria-label="Buscar ou escrever uma justificativa" placeholder="Buscar ou escrever uma justificativa"></textarea>
       <div id="saved-justification-list" class="saved-justification-list" role="listbox"></div>
+      <p class="justification-hint">Clique numa justificativa para aplicar ao item. Esc ou ✕ fecha.</p>
       <div id="saved-adjustment-value-field" class="saved-adjustment-value" hidden><label>Valor do ajuste<span class="money-input"><span>R$</span><input id="saved-adjustment-value" inputmode="decimal" value="0,00" aria-label="Valor do ajuste"></span></label><button id="apply-adjustment-justification" type="button">Aplicar justificativa</button></div>
-      <div class="modal-actions"><button id="justification-modal-cancel" type="button" class="secondary">Cancelar</button></div>
     </section>
   </div>
   <div id="manual-justification-modal" class="modal-backdrop" hidden>

@@ -157,17 +157,19 @@ td .amount { min-width: 112px; }
 .history-list > li > span { color: var(--muted); font-size: 13px; }
 .history-details { display: grid; grid-column: 1 / -1; gap: 4px; margin: 4px 0 0; padding-left: 18px; color: var(--muted); font-size: 13px; }
 .history-details li { padding-left: 2px; overflow-wrap: anywhere; }
-.saved-justification-create { display: grid; gap: 7px; margin: 12px 2px; }
-.saved-justification-create label { font-size: 12px; }
-.saved-justification-create textarea { min-height: 68px; }
-.saved-justification-create button { min-height: 34px; justify-self: end; padding: 6px 10px; font-size: 12px; }
+.justification-modal-head { display: flex; align-items: center; gap: 12px; padding-right: 40px; }
+.justification-modal-head h2 { margin: 0; }
+.module-pill { width: auto; max-width: 260px; min-height: 32px; border-radius: 999px; padding: 4px 30px 4px 12px; font-size: 13px; font-weight: 700; }
+.save-new-justification { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 42px; border: 1px dashed var(--blue); background: var(--blue-soft); color: var(--blue); padding: 9px 11px; text-align: left; font-size: 13px; font-weight: 700; }
+.save-new-justification span { overflow-wrap: anywhere; }
+.justification-hint { margin: 10px 2px 0; color: var(--muted); font-size: 12px; }
 .saved-justification-list { display: grid; max-height: 225px; gap: 8px; overflow: auto; padding: 2px; }
 .saved-justification { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: stretch; }
 .suggestion-option { width: 100%; min-height: 42px; border-color: var(--line); background: var(--surface); color: var(--ink); padding: 9px 11px; text-align: left; font-size: 13px; font-weight: 600; line-height: 1.4; }
 .suggestion-option:hover { border-color: var(--line-strong); background: var(--blue-soft); }
 .suggestion-empty { margin: 2px; color: var(--muted); font-size: 12px; }
-.delete-saved-justification { align-self: stretch; min-height: 38px; border-color: #dfb9c0; background: var(--red-soft); color: #813945; padding: 7px 9px; font-size: 12px; }
-.delete-saved-justification:hover { background: #f3dfe2; border-color: #ce9da7; }
+.delete-saved-justification { align-self: stretch; width: 40px; min-height: 38px; border-color: transparent; background: transparent; color: var(--muted); padding: 0; font-size: 15px; }
+.delete-saved-justification:hover { border-color: #dfb9c0; background: var(--red-soft); color: #813945; }
 .saved-justification-standard { display: grid; min-width: 64px; place-items: center; border: 1px solid #c4d7d4; border-radius: 8px; background: var(--green-soft); color: #2e5d5e; padding: 8px; font-size: 11px; font-weight: 800; }
 .saved-adjustment-value { display: flex; align-items: end; justify-content: space-between; gap: 14px; margin-top: 14px; border-top: 1px solid var(--line); padding-top: 14px; }
 .saved-adjustment-value label { min-width: 180px; }
@@ -273,7 +275,7 @@ td code { display: inline-block; margin: 1px 2px 1px 0; }
 .item-form { display: grid; gap: 16px; }
 .item-form #custom-module-fields { display: grid; grid-template-columns: 130px 1fr; gap: 13px; }
 .item-form .modal-actions { margin-top: 6px; }
-#saved-justification-search { margin: 20px 0 10px; }
+#saved-justification-search { display: block; min-height: 42px; max-height: 160px; margin: 18px 0 10px; resize: none; overflow-y: auto; }
 .preview-modal-card { width: min(1180px, calc(100vw - 40px)); }
 .preview-paper { max-height: calc(100vh - 150px); overflow-x: hidden; overflow-y: auto; border: 1px solid var(--line); border-radius: 8px; background: #e8eeee; padding: 18px; }
 .document-model { width: 190mm; min-height: 267mm; margin: auto; background: #fff; color: #111; padding: 9mm; font: 9pt "Times New Roman", serif; }
@@ -331,7 +333,7 @@ html[data-theme="dark"] .nav-link:hover, html[data-theme="dark"] .nav-link.activ
 html[data-theme="dark"] .metrics article, html[data-theme="dark"] .admin-metrics article, html[data-theme="dark"] .dashboard-metrics article { background: var(--surface); }
 html[data-theme="dark"] .guide-status.draft, html[data-theme="dark"] .status-badge.pending { color: var(--amber); }
 html[data-theme="dark"] .guide-status.finalized, html[data-theme="dark"] .role-badge, html[data-theme="dark"] .status-badge.ready, html[data-theme="dark"] .edit-window.open, html[data-theme="dark"] .saved-justification-standard { color: var(--green); }
-html[data-theme="dark"] .edit-window.closed, html[data-theme="dark"] .delete-saved-justification { color: var(--red); }
+html[data-theme="dark"] .edit-window.closed, html[data-theme="dark"] .delete-saved-justification:hover { color: var(--red); }
 html[data-theme="dark"] .edit-window small { color: inherit; }
 html[data-theme="dark"] .guide-lock-notice { border-color: #5a4721; color: var(--amber); }
 html[data-theme="dark"] .chip.warn { border-color: #5a4721; color: var(--amber); }

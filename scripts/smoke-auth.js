@@ -120,7 +120,7 @@ async function wait() {
     // Setor: só em glosa de material e de medicamento; sai no relatório junto da especificação.
     response = await request('/api/guides', { method: 'POST', body: JSON.stringify({ ocs: 'OCS setor', patient: 'Paciente setor', billed: 10, status: 'RASCUNHO', items: [{ module: 'Glosa de material', specification: 'Seringa 10 ml', sector: 'UTI', justification: 'x', amount: 1 }, { module: 'Glosa de taxa', specification: 'Taxa', sector: 'ignorado', justification: 'y', amount: 1 }] }) }); const sectorGuide = await response.json();
     assert.deepEqual(sectorGuide.items.map((item) => item.sector), ['UTI', '']);
-    assert.match(await (await request(`/api/guides/${sectorGuide.number}/report`)).text(), /Seringa 10 ml - Setor: UTI/);
+    assert.match(await (await request(`/api/guides/${sectorGuide.number}/report`)).text(), /Seringa 10 ml – UTI</);
     // Exclusão lógica: some para o usuário, mas guia e histórico ficam no banco.
     response = await request('/api/guides', { method: 'POST', body: JSON.stringify({ ocs: 'Para excluir', patient: '', billed: 0, items: [], status: 'RASCUNHO' }) }); const doomed = await response.json();
     response = await request(`/api/guides/${doomed.number}`, { method: 'DELETE' }); assert.equal(response.status, 200);
