@@ -17,8 +17,8 @@ const options = require('../lib/options');
   await run("INSERT INTO hidden_suggestions (fingerprint, kind, suggestion) VALUES ('c', 'ocs', 'HOSPITAL')");
   await options.adoptLegacy();
   await options.adoptLegacy(); // de novo: não duplica nem falha
-  assert.ok((await options.justifications(2)).includes('Glosa salva pela Tacya.'), 'auditora mantém a sua');
-  assert.ok(!(await options.justifications(1)).includes('Glosa salva pela Tacya.'), 'admin não vê a da auditora');
+  assert.ok((await options.justifications(2, 'Glosa de taxa')).includes('Glosa salva pela Tacya.'), 'auditora mantém a sua');
+  assert.ok(!(await options.justifications(1, 'Glosa de taxa')).includes('Glosa salva pela Tacya.'), 'admin não vê a da auditora');
   const count = async (table, where) => Number((await all(`SELECT COUNT(*) AS total FROM ${table} WHERE ${where}`))[0].total);
   for (const table of ['saved_justifications', 'deleted_justifications', 'hidden_suggestions']) assert.equal(await count(table, 'owner_id IS NULL'), 0, `${table} sem registro sem dono`);
   assert.equal(await count('saved_justifications', 'owner_id IS NOT NULL'), 1, 'salva vai só para a auditora');

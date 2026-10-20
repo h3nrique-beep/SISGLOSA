@@ -110,10 +110,17 @@ async function wait() {
     response = await request('/api/draft'); assert.equal(await response.json(), null, 'gravar a guia apaga o rascunho automático');
     response = await request(`/api/guides/${finalized.number}/history`); const editedHistory = await response.json(); assert.equal(editedHistory[0].action, 'Guia editada'); assert.ok(editedHistory[0].details.some((detail) => detail.includes('Paciente: Paciente teste → Paciente atualizado'))); assert.ok(editedHistory[0].details.some((detail) => detail.includes('Item 1') && detail.includes('Valor')));
     response = await request('/api/options/modules'); assert.ok((await response.json()).includes('Glosa: Taxa personalizada'));
-    response = await request('/api/options/justifications'); const justifications = await response.json(); assert.ok(justifications.includes('Ajuste, será pago R$ conforme as regras da CBHPM Edição 2014 e de acordo com o item 5 do referencial de custos do contrato.')); assert.ok(justifications.includes('Justificativa registrada pelo auditor.'));
-    response = await request('/api/options/justifications', { method: 'DELETE', body: JSON.stringify({ justification: 'Justificativa registrada pelo auditor.' }) }); assert.equal(response.status, 200);
-    response = await request('/api/options/justifications'); assert.ok(!(await response.json()).includes('Justificativa registrada pelo auditor.'));
-    response = await request('/api/options/justifications', { method: 'POST', body: JSON.stringify({ justification: 'Texto privado do auditor.' }) }); assert.equal(response.status, 201);
+    response = await request('/api/options/justifications?module=Ajuste%20de%20honor%C3%A1rios'); const justifications = [...await response.json(), ...await (await request('/api/options/justifications?module=Glosa%3A%20Taxa%20personalizada')).json()]; assert.ok(justifications.includes('Ajuste, será pago R$ conforme as regras da CBHPM Edição 2014 e de acordo com o item 5 do referencial de custos do contrato.')); assert.ok(justifications.includes('Justificativa registrada pelo auditor.'));
+    response = await request('/api/options/justifications?module=Glosa%20de%20material'); assert.ok(!(await response.json()).includes('Justificativa registrada pelo auditor.'), 'justificativa de outro módulo não aparece');
+    response = await request('/api/options/justifications', { method: 'DELETE', body: JSON.stringify({ module: 'Glosa: Taxa personalizada', justification: 'Justificativa registrada pelo auditor.' }) }); assert.equal(response.status, 200);
+    response = await request('/api/options/justifications?module=Glosa%3A%20Taxa%20personalizada'); assert.ok(!(await response.json()).includes('Justificativa registrada pelo auditor.'));
+    response = await request('/api/options/justifications', { method: 'POST', body: JSON.stringify({ justification: 'Sem módulo.' }) }); assert.equal(response.status, 400);
+    response = await request('/api/options/justifications', { method: 'POST', body: JSON.stringify({ module: 'Glosa de material', justification: 'Texto privado do auditor.' }) }); assert.equal(response.status, 201);
+    response = await request('/api/options/justifications?module=Glosa%20de%20medicamento'); assert.ok(!(await response.json()).includes('Texto privado do auditor.'), 'salva num módulo não vai para outro');
+    // Setor: só em glosa de material e de medicamento; sai no relatório junto da especificação.
+    response = await request('/api/guides', { method: 'POST', body: JSON.stringify({ ocs: 'OCS setor', patient: 'Paciente setor', billed: 10, status: 'RASCUNHO', items: [{ module: 'Glosa de material', specification: 'Seringa 10 ml', sector: 'UTI', justification: 'x', amount: 1 }, { module: 'Glosa de taxa', specification: 'Taxa', sector: 'ignorado', justification: 'y', amount: 1 }] }) }); const sectorGuide = await response.json();
+    assert.deepEqual(sectorGuide.items.map((item) => item.sector), ['UTI', '']);
+    assert.match(await (await request(`/api/guides/${sectorGuide.number}/report`)).text(), /Seringa 10 ml - Setor: UTI/);
     // Exclusão lógica: some para o usuário, mas guia e histórico ficam no banco.
     response = await request('/api/guides', { method: 'POST', body: JSON.stringify({ ocs: 'Para excluir', patient: '', billed: 0, items: [], status: 'RASCUNHO' }) }); const doomed = await response.json();
     response = await request(`/api/guides/${doomed.number}`, { method: 'DELETE' }); assert.equal(response.status, 200);
@@ -132,7 +139,7 @@ async function wait() {
     response = await request('/api/login', { method: 'POST', body: JSON.stringify({ username: 'administrador', password: 'Multi@1234' }) }); assert.equal(response.status, 200);
     { const check = new DatabaseSync(path.join(folder, 'guias.db')); assert.match(check.prepare("SELECT password_hash FROM users WHERE username='administrador'").get().password_hash, /^600000:/); check.close(); }
     await request('/api/session/role', { method: 'POST', body: JSON.stringify({ role: 'user' }) });
-    response = await request('/api/options/justifications'); assert.ok(!(await response.json()).includes('Texto privado do auditor.'), 'justificativa é de cada usuário');
+    response = await request('/api/options/justifications?module=Glosa%20de%20material'); assert.ok(!(await response.json()).includes('Texto privado do auditor.'), 'justificativa é de cada usuário');
     cookie = '';
     response = await request('/api/login', { method: 'POST', body: JSON.stringify({ username: 'admin', password: 'senha-errada' }) }); assert.equal(response.status, 401);
     response = await request('/api/login', { method: 'POST', body: JSON.stringify({ username: 'ninguem', password: 'x' }) }); assert.equal(response.status, 401);

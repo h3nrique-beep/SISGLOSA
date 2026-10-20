@@ -116,9 +116,9 @@ const routes = [
   ['GET', '/api/options/specifications', 'user', (ctx) => options.specifications(ctx.session.userId, ctx.url.searchParams.get('module'))],
   ['DELETE', /^\/api\/options\/(ocs|patients|specifications)$/, 'user', async (ctx) => { await options.hideSuggestion(ctx.session.userId, ctx.params[1], (await body(ctx.request)).value); return {}; }],
   ['GET', '/api/options/modules', 'user', (ctx) => options.modules(ctx.session.userId)],
-  ['GET', '/api/options/justifications', 'user', (ctx) => options.justifications(ctx.session.userId)],
-  ['POST', '/api/options/justifications', 'user', async (ctx) => ctx.reply(201, await options.saveJustification(ctx.session.userId, (await body(ctx.request)).justification))],
-  ['DELETE', '/api/options/justifications', 'user', async (ctx) => { await options.deleteJustification(ctx.session.userId, (await body(ctx.request)).justification); return {}; }],
+  ['GET', '/api/options/justifications', 'user', (ctx) => options.justifications(ctx.session.userId, ctx.url.searchParams.get('module'))],
+  ['POST', '/api/options/justifications', 'user', async (ctx) => { const data = await body(ctx.request); return ctx.reply(201, await options.saveJustification(ctx.session.userId, data.module, data.justification)); }],
+  ['DELETE', '/api/options/justifications', 'user', async (ctx) => { const data = await body(ctx.request); await options.deleteJustification(ctx.session.userId, data.module, data.justification); return {}; }],
 ];
 
 function matchRoute(method, pathname) {

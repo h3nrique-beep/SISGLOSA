@@ -13,6 +13,7 @@ let currentGuideEditable = true;
 let justificationOptions = [];
 let ocsOptions = [], patientOptions = [], specificationOptions = [];
 let justificationTarget;
+let justificationModule = '';
 let manualJustificationTarget;
 // Nova chave: a antiga gravava o tema do sistema automaticamente e prenderia todos no escuro.
 const themeKey = 'sisglosa-theme';
@@ -20,6 +21,7 @@ const routes = { dashboard: '/', guide: '/guias', recent: '/registros', admin: '
 const routeScreen = Object.fromEntries(Object.entries(routes).map(([screen, route]) => [route, screen]));
 
 function isHonor(module) { return module.includes('honorário'); }
+function hasSector(module) { return ['Glosa de material', 'Glosa de medicamento'].includes(module); }
 function setTheme(theme) { document.documentElement.dataset.theme = theme; const label = theme === 'dark' ? 'Ativar modo claro' : 'Ativar modo escuro'; $('#theme-icon').className = `bi bi-${theme === 'dark' ? 'sun' : 'moon-stars'}`; $('#theme-toggle').setAttribute('aria-pressed', String(theme === 'dark')); $('#theme-toggle').setAttribute('aria-label', label); $('#theme-toggle').title = label; }
 function isAdjustment(module) { return module.startsWith('Ajuste'); }
 function amount(value) { return Number(String(value ?? '').replace(/[^0-9,-]/g, '').replace(/\./g, '').replace(',', '.')) || 0; }
@@ -64,15 +66,15 @@ function setItemMode(mode) { const custom = mode === 'custom'; $('#existing-modu
 function closeItemModal() { $('#item-modal').hidden = true; }
 function openItemModal() { setItemMode('existing'); $('#item-modal').hidden = false; $('#add-module').value = activeModule; $('#add-module').focus(); }
 function applySavedJustification(value) { justificationTarget.value = value; closeJustificationModal(); totals(); persistDraft(); }
-async function saveJustification(value) { const justification = value.trim(); if (!justification) { toast('Digite uma justificativa antes de salvá-la.', 'error'); return false; } try { await api('/api/options/justifications', { method: 'POST', body: JSON.stringify({ justification }) }); await loadJustifications(); toast('Justificativa salva para reutilização.', 'success'); return true; } catch (error) { toast(error.message, 'error'); return false; } }
-async function deleteSavedJustification(value) { if (!await confirmAction('A justificativa será removida apenas da lista de sugestões. Guias e relatórios já registrados não serão alterados.', { title: 'Excluir justificativa salva', confirm: 'Excluir', danger: true })) return; try { await api('/api/options/justifications', { method: 'DELETE', body: JSON.stringify({ justification: value }) }); toast('Justificativa removida das sugestões.', 'success'); await loadJustifications(); } catch (error) { toast(error.message, 'error'); } }
+async function saveJustification(value) { const justification = value.trim(); if (!justification) { toast('Digite uma justificativa antes de salvá-la.', 'error'); return false; } try { await api('/api/options/justifications', { method: 'POST', body: JSON.stringify({ module: justificationModule, justification }) }); await loadJustifications(); toast('Justificativa salva para reutilização.', 'success'); return true; } catch (error) { toast(error.message, 'error'); return false; } }
+async function deleteSavedJustification(value) { if (!await confirmAction('A justificativa será removida apenas da lista de sugestões. Guias e relatórios já registrados não serão alterados.', { title: 'Excluir justificativa salva', confirm: 'Excluir', danger: true })) return; try { await api('/api/options/justifications', { method: 'DELETE', body: JSON.stringify({ module: justificationModule, justification: value }) }); toast('Justificativa removida das sugestões.', 'success'); await loadJustifications(); } catch (error) { toast(error.message, 'error'); } }
 function renderSavedJustifications(query = '') { const list = $('#saved-justification-list'); const values = justificationOptions.filter((value) => value.toLocaleLowerCase('pt-BR').includes(query.trim().toLocaleLowerCase('pt-BR'))); list.replaceChildren(); if (!values.length) return list.append(Object.assign(document.createElement('p'), { className: 'suggestion-empty', textContent: query ? 'Nenhuma justificativa encontrada.' : 'Ainda não há justificativas salvas.' })); values.forEach((value) => { const row = Object.assign(document.createElement('div'), { className: 'saved-justification' }); const option = Object.assign(document.createElement('button'), { type: 'button', className: 'suggestion-option', textContent: value }); option.onclick = () => applySavedJustification(value); row.append(option); if (value === DEFAULT_ADJUSTMENT_JUSTIFICATION) row.append(Object.assign(document.createElement('span'), { className: 'saved-justification-standard', textContent: 'Padrão' })); else { const remove = Object.assign(document.createElement('button'), { type: 'button', className: 'delete-saved-justification', textContent: 'Excluir', ariaLabel: 'Excluir justificativa salva' }); remove.onclick = () => deleteSavedJustification(value); row.append(remove); } list.append(row); }); }
 function closeJustificationModal() { $('#justification-modal').hidden = true; $('#saved-adjustment-value-field').hidden = true; justificationTarget = null; }
-function openJustificationModal(target) { justificationTarget = target; $('#saved-justification-search').value = ''; $('#new-saved-justification').value = ''; $('#saved-adjustment-value-field').hidden = true; renderSavedJustifications(); $('#justification-modal').hidden = false; $('#saved-justification-search').focus(); }
+function openJustificationModal(target) { justificationTarget = target; justificationModule = $('.module', target.closest('tr')).value; $('#justification-module').textContent = `Módulo: ${justificationModule}`; justificationOptions = []; $('#saved-justification-search').value = ''; $('#new-saved-justification').value = ''; $('#saved-adjustment-value-field').hidden = true; renderSavedJustifications(); loadJustifications().catch((error) => toast(error.message, 'error')); $('#justification-modal').hidden = false; $('#saved-justification-search').focus(); }
 function closeManualJustificationModal() { $('#manual-justification-modal').hidden = true; manualJustificationTarget = null; }
 function openManualJustificationModal(target) { manualJustificationTarget = target; $('#manual-justification-text').value = target.value; $('#manual-justification-modal').hidden = false; $('#manual-justification-text').focus(); }
 function setJustificationMode(row) { $('.justification-composer', row).hidden = false; }
-function rowValues(row) { return { module: $('.module', row).value, specification: $('.specification', row).value, specialty: $('.specialty', row).value, crm: $('.crm', row).value, justification: $('.justification', row).value, amount: amount($('.amount', row).value) }; }
+function rowValues(row) { return { module: $('.module', row).value, specification: $('.specification', row).value, specialty: $('.specialty', row).value, crm: $('.crm', row).value, sector: $('.sector', row).value, justification: $('.justification', row).value, amount: amount($('.amount', row).value) }; }
 function rows() { return [...$('#items').rows]; }
 function addItem(module = activeModule, item = {}) {
   if (!modules.includes(item.module || module)) modules.push(item.module || module);
@@ -82,12 +84,13 @@ function addItem(module = activeModule, item = {}) {
   $('.specification', row).value = item.specification || '';
   $('.specialty', row).value = item.specialty || '';
   $('.crm', row).value = item.crm || '';
+  $('.sector', row).value = item.sector || '';
   $('.justification', row).value = item.justification || '';
   $('.amount', row).value = item.amount === undefined ? '0,00' : Number(item.amount).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   setJustificationMode(row);
   $('.suggestion-toggle', row).onclick = () => openJustificationModal($('.justification', row));
   $('.manual-justification-toggle', row).onclick = () => openManualJustificationModal($('.justification', row));
-  $('.module', row).addEventListener('change', () => { $('.specification', row).value = ''; $('.specialty', row).value = ''; $('.crm', row).value = ''; $('.justification', row).value = ''; $('.amount', row).value = '0,00'; activeModule = $('.module', row).value; pruneCustomModules(); $('#add-module').value = activeModule; setJustificationMode(row); showAll = false; renderFlow(); loadSpecifications(activeModule); totals(); persistDraft(); });
+  $('.module', row).addEventListener('change', () => { $('.specification', row).value = ''; $('.specialty', row).value = ''; $('.crm', row).value = ''; $('.sector', row).value = ''; $('.justification', row).value = ''; $('.amount', row).value = '0,00'; activeModule = $('.module', row).value; pruneCustomModules(); $('#add-module').value = activeModule; setJustificationMode(row); showAll = false; renderFlow(); loadSpecifications(activeModule); totals(); persistDraft(); });
   $('.remove', row).addEventListener('click', () => { row.remove(); pruneCustomModules(); totals(); renderFlow(); persistDraft(); });
   row.addEventListener('input', () => { totals(); persistDraft(); });
   bindMoneyInput($('.amount', row));
@@ -100,6 +103,8 @@ function renderFlow() {
   $('#show-all').textContent = showAll ? 'Mostrar módulo atual' : 'Ver concluídos';
   rows().forEach((row) => { const rowHonor = isHonor($('.module', row).value); row.toggleAttribute('hidden', !showAll && $('.module', row).value !== activeModule); row.querySelectorAll('.honor-cell').forEach((cell) => { cell.toggleAttribute('hidden', !rowHonor && !showAll); cell.querySelector('input').toggleAttribute('hidden', !rowHonor); }); });
   document.querySelectorAll('.honor-column').forEach((cell) => cell.toggleAttribute('hidden', !honor && !showAll));
+  rows().forEach((row) => { const rowSector = hasSector($('.module', row).value); const cell = $('.sector-cell', row); cell.toggleAttribute('hidden', !rowSector && !showAll); $('.sector', row).toggleAttribute('hidden', !rowSector); });
+  document.querySelectorAll('.sector-column').forEach((cell) => cell.toggleAttribute('hidden', !hasSector(activeModule) && !showAll));
   renderModuleMap();
 }
 // Mapa dos módulos agrupado em Ajustes e Glosas, com a quantidade de itens lançados em cada um.
@@ -128,7 +133,7 @@ function previewSections(items, prefix, title) {
   const sections = modules.filter((module) => module.startsWith(prefix)).map((module) => {
     const group = items.filter((item) => item.module === module); if (!group.length) return '';
     const label = module === 'Ajuste de honorários' ? 'Honorários - Ajuste' : module.toUpperCase(); const total = group.reduce((sum, item) => sum + item.amount, 0);
-    return `<h3>${escape(label)}</h3><table><thead><tr><th>Item</th><th>Especificação</th><th>Justificativa</th><th>${prefix}</th></tr></thead><tbody>${group.map((item, index) => { const details = [item.specification, isHonor(module) && item.specialty, isHonor(module) && item.crm ? `CRM: ${item.crm}` : ''].filter(Boolean).join(' - '); return `<tr><td>${index + 1}</td><td>${escape(details)}</td><td>${escape(item.justification)}</td><td class="money">${format(item.amount)}</td></tr>`; }).join('')}<tr class="total"><th colspan="3">Total de ${escape(label)}</th><th class="money">${format(total)}</th></tr></tbody></table>`;
+    return `<h3>${escape(label)}</h3><table><thead><tr><th>Item</th><th>Especificação</th><th>Justificativa</th><th>${prefix}</th></tr></thead><tbody>${group.map((item, index) => { const details = [item.specification, isHonor(module) && item.specialty, isHonor(module) && item.crm ? `CRM: ${item.crm}` : '', hasSector(module) && item.sector ? `Setor: ${item.sector}` : ''].filter(Boolean).join(' - '); return `<tr><td>${index + 1}</td><td>${escape(details)}</td><td>${escape(item.justification)}</td><td class="money">${format(item.amount)}</td></tr>`; }).join('')}<tr class="total"><th colspan="3">Total de ${escape(label)}</th><th class="money">${format(total)}</th></tr></tbody></table>`;
   }).join('');
   return sections ? `<h2>${title}</h2>${sections}` : '';
 }
@@ -178,7 +183,7 @@ function checkAttendance() {
 async function loadOcs() { [ocsOptions, patientOptions] = await Promise.all([api('/api/options/ocs'), api('/api/options/patients')]); }
 async function loadSpecifications(module) { specificationOptions = await api(`/api/options/specifications?module=${encodeURIComponent(module)}`); }
 async function loadModules() { modules = await api('/api/options/modules'); savedModules = [...modules]; refreshModuleOptions(); renderFlow(); }
-async function loadJustifications() { justificationOptions = await api('/api/options/justifications'); if (!$('#justification-modal').hidden) renderSavedJustifications($('#saved-justification-search').value); }
+async function loadJustifications() { if (!justificationModule) return; justificationOptions = await api(`/api/options/justifications?module=${encodeURIComponent(justificationModule)}`); if (!$('#justification-modal').hidden) renderSavedJustifications($('#saved-justification-search').value); }
 function setGuideEditable(editable, editableUntil = null) { currentGuideEditable = editable; $('#guide-form').querySelectorAll('input, select, textarea, button').forEach((field) => { field.disabled = !editable; }); $('#save-guide').disabled = !editable; $('#finalize-guide').disabled = !editable; const notice = $('#guide-lock-notice'); notice.hidden = editable; if (!editable) notice.textContent = `O prazo de edição terminou em ${dateTime(editableUntil)}. Esta guia continua disponível para consulta e impressão.`; }
 function resetGuide(discardDraft = false) { if (discardDraft) clearDraft(); $('#guide-form').reset(); $('#guide-number').value = ''; $('#items').replaceChildren(); activeModule = modules[0]; currentGuideStatus = 'RASCUNHO'; showAll = false; addItem(); setGuideEditable(true); $('#print-guide').disabled = true; $('#billed').value = '0,00'; totals(); renderEditHistory(); $('#attendance-warning').hidden = true; navigate('guide', false); }
 async function saveGuide(status = currentGuideStatus) {
