@@ -125,7 +125,7 @@ async function wait() {
     response = await request('/api/guides', { method: 'POST', body: JSON.stringify({ ocs: 'Para excluir', patient: '', billed: 0, items: [], status: 'RASCUNHO' }) }); const doomed = await response.json();
     response = await request(`/api/guides/${doomed.number}`, { method: 'DELETE' }); assert.equal(response.status, 200);
     response = await request(`/api/guides/${doomed.number}`); assert.equal(response.status, 404);
-    response = await request(`/api/guides/${finalized.number}/report`); const report = await response.text(); assert.match(report, /Relatório de Glosas do Atendimento 2\.706\.875/); assert.match(report, /GUIA Nº: G-2026\/123/); assert.equal(await count({ q: 'g-2026' }), 1); assert.match(report, /R\$\s*85,00/);
+    response = await request(`/api/guides/${finalized.number}/report`); const report = await response.text(); assert.match(report, /Relatório de Glosas do Atendimento 2\.706\.875/); assert.match(report, /GUIA Nº: G-2026\/123/); assert.equal(await count({ q: 'g-2026' }), 1); assert.match(report, /R\$\s*85,00/); assert.match(report, /Taxa teste/); assert.match(report, /GLOSA: TAXA PERSONALIZADA/);
     const database = new DatabaseSync(path.join(folder, 'guias.db')); database.prepare("UPDATE guides SET finalized_at=datetime('now', '-31 days') WHERE number=?").run(finalized.number);
     response = await request('/api/guides', { method: 'POST', body: JSON.stringify({ ...finalized, status: 'FINALIZADA' }) }); assert.equal(response.status, 400);
     response = await request(`/api/guides/${finalized.number}`, { method: 'DELETE' }); assert.equal(response.status, 403);
