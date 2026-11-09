@@ -104,7 +104,7 @@ Com SQLite, o painel do administrador gerencia os backups em `data/backups` (ou 
 
 | Tipo | Quando | Quanto tempo fica |
 |---|---|---|
-| `auto` | Uma vez por dia, verificado a cada hora pelo próprio serviço | 90 dias |
+| `auto` | Uma vez por dia, verificado a cada hora pelo próprio serviço | 30 dias |
 | `manual` | Botão no painel | Os 20 mais recentes entre manual, pre-update e pre-restore |
 | `pre-update` | Antes de aplicar um pacote de atualização | idem |
 | `pre-restore` | Antes de restaurar outro backup | idem |

@@ -132,7 +132,7 @@
           <div class="update-actions"><p class="update-note">Mudou o código à mão (fora de um pacote)? Depois de conferir, aceite o estado atual como nova referência.</p><button id="monitor-accept" class="secondary with-label" type="button"><i class="bi bi-shield-check" aria-hidden="true"></i>Aceitar estado atual</button></div>
         </section>
         <section class="panel backup-panel" data-dev-tab="backups" role="tabpanel">
-          <div class="section-heading"><div><h2>Backups do banco</h2><p>Automático a cada 24 h (mantido por 90 dias), antes de cada atualização e antes de cada restauração. Cada cópia é conferida ao ser gerada.</p></div><div class="heading-actions"><button id="backup-create" class="with-label" type="button"><i class="bi bi-database-add" aria-hidden="true"></i>Gerar agora</button></div></div>
+          <div class="section-heading"><div><h2>Backups do banco</h2><p>Automático a cada 24 h (mantido por 30 dias), antes de cada atualização e antes de cada restauração. Cada cópia é conferida ao ser gerada.</p></div><div class="heading-actions"><button id="backup-create" class="with-label" type="button"><i class="bi bi-database-add" aria-hidden="true"></i>Gerar agora</button></div></div>
           <p id="backup-warning" class="update-note bad" hidden></p>
           <div class="table-wrap"><table class="backup-table"><thead><tr><th>Data</th><th>Tipo</th><th>Tamanho</th><th>Conteúdo</th><th>Verificação</th><th class="end">Ações</th></tr></thead><tbody id="backup-list"><tr><td colspan="6" class="empty-cell">Carregando…</td></tr></tbody></table></div>
           <details class="backup-history"><summary>Histórico de backups (gerados, baixados e restaurados)</summary><ul id="backup-history" class="history-list"></ul></details>
