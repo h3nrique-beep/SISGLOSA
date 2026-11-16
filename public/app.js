@@ -48,7 +48,7 @@ function confirmAction(message, { title = 'Confirmar ação', confirm = 'Confirm
 async function api(url, options = {}) {
   const response = await fetch(url, { headers: { 'Content-Type': 'application/json', ...(options.headers || {}) }, ...options });
   const data = response.headers.get('content-type')?.includes('application/json') ? await response.json() : null;
-  if (response.status === 401) { showLogin(); throw new Error('Sessão expirada.'); }
+  if (response.status === 401) { showLogin(); throw new Error(data?.error || 'Sessão expirada.'); }
   if (!response.ok) throw new Error(data?.error || 'Não foi possível concluir a operação.');
   return data;
 }
